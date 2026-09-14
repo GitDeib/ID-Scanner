@@ -48,6 +48,7 @@ const processingText = document.getElementById("processingText");
 // Chips
 const chipContainer = document.getElementById("chipContainer");
 const noChipsMessage = document.getElementById("noChipsMessage");
+const chipCount = document.getElementById("chipCount");
 
 // =========================================================
 // FORM FIELDS
@@ -681,6 +682,9 @@ function buildChips(rawText) {
         .filter(line => line.length > 1);
 
     const uniqueLines = [...new Set(lines)];
+
+    chipCount.textContent =
+        uniqueLines.length > 0 ? `(${uniqueLines.length})` : "";
 
     if (uniqueLines.length === 0) {
         noChipsMessage.classList.remove("hidden");
@@ -1808,8 +1812,12 @@ function retakeScan() {
 
     chipContainer.innerHTML = "";
     noChipsMessage.classList.add("hidden");
+    chipCount.textContent = "";
     selectedChipEl = null;
     selectedChipText = null;
+
+    const chipsPanel = document.getElementById("chipsPanel");
+    if (chipsPanel) chipsPanel.open = false;
 
     // =====================================================
     // BACK TO CAPTURE SCREEN
