@@ -2,6 +2,9 @@
 // DOM ELEMENTS
 // =========================================================
 
+const GOOGLE_SCRIPT_URL =
+    "https://script.google.com/a/macros/umindanao.edu.ph/s/AKfycbzBX6kB3ewjsjKrmPqcFcyH7Hh_Kd0yowxicqOA47eq-6yAnOQIOUnt6NceVv5ozswIFg/exec";
+
 const camera = document.getElementById("camera");
 const cameraPlaceholder = document.getElementById("cameraPlaceholder");
 const cameraLoading = document.getElementById("cameraLoading");
@@ -1800,15 +1803,101 @@ clearButton.addEventListener(
 // CONFIRM BUTTON
 // =========================================================
 
-confirmButton.addEventListener(
-    "click",
-    function () {
+async function submitToGoogleSheet() {
+
+    // -------------------------------------------------
+    // Get current values from the form
+    // -------------------------------------------------
+
+    const data = {
+        name: nameInput.value.trim(),
+        birthdate: birthdateInput.value.trim(),
+        age: ageInput.value.trim(),
+        sex: sexInput.value.trim(),
+        nationality: nationalityInput.value.trim(),
+        address: addressInput.value.trim(),
+        idNumber: idNumberInput.value.trim(),
+        idType: idTypeInput.value.trim()
+    };
+
+
+    // -------------------------------------------------
+    // Basic validation
+    // -------------------------------------------------
+
+    if (!data.name) {
+        alert("Please enter the person's name.");
+        nameInput.focus();
+        return;
+    }
+
+    if (!data.idNumber) {
+        alert("Please enter the ID number.");
+        idNumberInput.focus();
+        return;
+    }
+
+
+    // -------------------------------------------------
+    // Disable button while saving
+    // -------------------------------------------------
+
+    confirmButton.disabled = true;
+
+    const originalText = confirmButton.textContent;
+
+    confirmButton.textContent = "Saving...";
+
+
+    try {
+
+        // -------------------------------------------------
+        // Send data to Google Apps Script
+        // -------------------------------------------------
+
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8"
+            },
+            body: JSON.stringify(data)
+        });
+
+
+        // -------------------------------------------------
+        // Success
+        // -------------------------------------------------
+
+        alert("Successfully saved to Google Sheets.");
+
+
+        // -------------------------------------------------
+        // Clear scanner for next person
+        // -------------------------------------------------
+
+        clearEverything();
+
+
+    } catch (error) {
+
+        console.error(
+            "Google Sheets submission error:",
+            error
+        );
 
         alert(
-            "Google Sheets saving will be connected later."
+            "Failed to save the record.\n\n" +
+            "Please check your internet connection and try again."
         );
+
+    } finally {
+
+        confirmButton.disabled = false;
+
+        confirmButton.textContent = originalText;
     }
-);
+}
 
 // =========================================================
 // PAGE LOAD
@@ -1833,3 +1922,88 @@ window.addEventListener(
         stopCamera();
     }
 );
+
+async function submitToGoogleSheet() {
+
+    const data = {
+        name: document.getElementById("name").value.trim(),
+        birthdate: document.getElementById("birthdate").value.trim(),
+        age: document.getElementById("age").value.trim(),
+        sex: document.getElementById("sex").value.trim(),
+        nationality: document.getElementById("nationality").value.trim(),
+        address: document.getElementById("address").value.trim(),
+        idNumber: document.getElementById("idNumber").value.trim(),
+        idType: document.getElementById("idType").value.trim()
+    };
+
+
+    // -------------------------------------------------
+    // Basic validation
+    // -------------------------------------------------
+
+    if (!data.name) {
+        alert("Please enter the person's name.");
+        document.getElementById("name").focus();
+        return;
+    }
+
+    if (!data.idNumber) {
+        alert("Please enter the ID number.");
+        document.getElementById("idNumber").focus();
+        return;
+    }
+
+
+    // -------------------------------------------------
+    // Confirm button
+    // -------------------------------------------------
+
+    const button = document.getElementById("confirmButton");
+
+    if (button) {
+        button.disabled = true;
+        button.textContent = "Saving...";
+    }
+
+
+    try {
+
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8"
+            },
+            body: JSON.stringify(data)
+        });
+
+
+        alert("Successfully saved to Google Sheets.");
+
+        clearEverything();
+
+
+    } catch (error) {
+
+        console.error(
+            "Google Sheets submission error:",
+            error
+        );
+
+        alert(
+            "Failed to save the record.\n\n" +
+            "Please check your internet connection."
+        );
+
+    } finally {
+
+        if (button) {
+            button.disabled = false;
+            button.textContent = "Confirm";
+        }
+    }
+}
+
+document
+    .getElementById("confirmButton")
+    .addEventListener("click", submitToGoogleSheet);
