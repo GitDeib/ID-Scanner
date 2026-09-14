@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    ```
+    <title>ID Scanner</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    ```
+
+</head>
+
+<body class="min-h-screen bg-slate-100 font-sans text-slate-800">
+
+    ```
+    <!-- =========================================================
+     HEADER
+========================================================== -->
+    <header class="border-b border-slate-200 bg-white">
+        <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
+
+            <div class="flex items-center gap-3">
+                <!-- Logo Placeholder -->
+                <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M15 9h.01M9 9h.01M12 13.5c-1.5 0-2.8.6-3.7 1.6M12 13.5c1.5 0 2.8.6 3.7 1.6M12 3a9 9 0 100 18 9 9 0 000-18z" />
+                    </svg>
+                </div>
+
+                <div>
+                    <h1 class="text-lg font-bold tracking-tight text-slate-900">
+                        ID Scanner
+                    </h1>
+
+                    <p class="text-xs text-slate-500">
+                        Identification Information Capture
+                    </p>
+                </div>
+            </div>
+
+            <!-- Scanner Status -->
+            <div
+                class="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
+                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+
+                <span class="text-xs font-medium text-emerald-700">
+                    Scanner Ready
+                </span>
+            </div>
+
+        </div>
+    </header>
+
+
+    <!-- =========================================================
+     MAIN CONTENT
+========================================================== -->
+    <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+
+        <!-- Page Heading -->
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold tracking-tight text-slate-900">
+                Scan Identification
+            </h2>
+
+            <p class="mt-1 text-sm text-slate-500">
+                Capture the front and back of the ID to extract the person's information.
+            </p>
+        </div>
+
+
+        <!-- =====================================================
+         SCAN PROGRESS
+    ====================================================== -->
+        <div class="mb-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                        Scan Progress
+                    </p>
+
+                    <p id="scanStatus" class="mt-1 text-sm font-semibold text-slate-800">
+                        Ready to capture front
+                    </p>
+                </div>
+
+
+                <!-- Steps -->
+                <div class="flex items-center gap-3">
+
+                    <!-- Front -->
+                    <div id="frontStatus" class="flex items-center gap-2">
+                        <div id="frontStatusCircle"
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                            1
+                        </div>
+
+                        <span id="frontStatusText" class="text-sm font-semibold text-blue-600">
+                            Front
+                        </span>
+                    </div>
+
+
+                    <!-- Connector -->
+                    <div class="h-px w-8 bg-slate-200 sm:w-12"></div>
+
+
+                    <!-- Back -->
+                    <div id="backStatus" class="flex items-center gap-2">
+                        <div id="backStatusCircle"
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-500">
+                            2
+                        </div>
+
+                        <span id="backStatusText" class="text-sm font-medium text-slate-400">
+                            Back
+                        </span>
+                    </div>
+
+
+                    <!-- Connector -->
+                    <div class="h-px w-8 bg-slate-200 sm:w-12"></div>
+
+
+                    <!-- Complete -->
+                    <div class="flex items-center gap-2">
+                        <div id="completeStatusCircle"
+                            class="flex h-8 w-8 items-center justify-center rounded-full bg-slate-200 text-sm font-bold text-slate-500">
+                            3
+                        </div>
+
+                        <span id="completeStatusText" class="hidden text-sm font-medium text-slate-400 sm:inline">
+                            Complete
+                        </span>
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- =====================================================
+         TWO COLUMN LAYOUT
+    ====================================================== -->
+        <div class="grid grid-cols-1 gap-6 xl:grid-cols-5">
+
+
+            <!-- =================================================
+             CAMERA SECTION
+        ================================================== -->
+            <section class="xl:col-span-3">
+
+                <div class="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <!-- Camera Header -->
+                    <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+
+                        <div>
+                            <h3 class="font-semibold text-slate-900">
+                                Camera Preview
+                            </h3>
+
+                            <p id="cameraInstruction" class="mt-0.5 text-xs text-slate-500">
+                                Position the front of the ID inside the frame.
+                            </p>
+                        </div>
+
+                        <!-- Camera indicator -->
+                        <div class="flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2">
+                            <span class="h-2 w-2 rounded-full bg-red-500"></span>
+
+                            <span class="text-xs font-medium text-slate-600">
+                                Live
+                            </span>
+                        </div>
+
+                    </div>
+
+
+                    <!-- Camera Area -->
+                    <div class="bg-slate-950 p-4 sm:p-6">
+
+                        <div
+                            class="relative mx-auto aspect-video w-full max-w-3xl overflow-hidden rounded-xl bg-slate-900 shadow-inner">
+
+                            <!-- Camera Video -->
+                            <video id="camera" autoplay playsinline muted class="h-full w-full object-cover"></video>
+
+
+                            <!-- Camera Placeholder -->
+                            <div id="cameraPlaceholder"
+                                class="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 text-center">
+
+                                <div class="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-800">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-slate-400" fill="none"
+                                        viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                                        <path stroke-linecap="round" stroke-linejoin="round"
+                                            d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+
+                                <p class="text-sm font-medium text-slate-300">
+                                    Camera Preview
+                                </p>
+
+                                <p class="mt-1 text-xs text-slate-500">
+                                    Camera will appear here
+                                </p>
+
+                            </div>
+
+
+                            <!-- ID Guide Frame -->
+                            <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+
+                                <div class="relative h-[58%] w-[82%] max-w-2xl">
+
+                                    <!-- Corner brackets -->
+                                    <div class="absolute left-0 top-0 h-7 w-7 border-l-2 border-t-2 border-white"></div>
+
+                                    <div class="absolute right-0 top-0 h-7 w-7 border-r-2 border-t-2 border-white">
+                                    </div>
+
+                                    <div class="absolute bottom-0 left-0 h-7 w-7 border-b-2 border-l-2 border-white">
+                                    </div>
+
+                                    <div class="absolute bottom-0 right-0 h-7 w-7 border-b-2 border-r-2 border-white">
+                                    </div>
+
+                                    <!-- Guide label -->
+                                    <div
+                                        class="absolute left-1/2 top-2 -translate-x-1/2 rounded-full bg-black/60 px-3 py-1 text-[11px] font-medium text-white backdrop-blur-sm">
+                                        Place ID here
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+
+                            <!-- Camera Loading -->
+                            <div id="cameraLoading"
+                                class="absolute inset-0 hidden items-center justify-center bg-slate-950/80 backdrop-blur-sm">
+                                <div class="text-center">
+
+                                    <div
+                                        class="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-slate-600 border-t-white">
+                                    </div>
+
+                                    <p class="mt-3 text-sm text-white">
+                                        Starting camera...
+                                    </p>
+
+                                </div>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Camera Controls -->
+                    <div class="border-t border-slate-200 p-5">
+
+                        <div class="flex flex-col gap-3 sm:flex-row">
+
+                            <!-- Capture Button -->
+                            <button id="captureButton" type="button"
+                                class="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 active:scale-[0.99]">
+
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M6.75 7.5h1.5l1.125-1.688A1.5 1.5 0 0110.622 5h2.756a1.5 1.5 0 011.247.812L15.75 7.5h1.5A2.25 2.25 0 0119.5 9.75v7.5a2.25 2.25 0 01-2.25 2.25h-10.5a2.25 2.25 0 01-2.25-2.25v-7.5A2.25 2.25 0 016.75 7.5z" />
+
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 15.75a3 3 0 100-6 3 3 0 000 6z" />
+                                </svg>
+
+                                <span id="captureButtonText">
+                                    Capture Front
+                                </span>
+
+                            </button>
+
+
+                            <!-- Retake Button -->
+                            <button id="retakeButton" type="button"
+                                class="hidden items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
+
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M16.023 9.348h4.992M16.023 9.348l-2.25-2.25M16.023 9.348l2.25 2.25M7.977 14.652H2.985m4.992 0l2.25 2.25m-2.25-2.25l-2.25-2.25M12 3a9 9 0 019 9m-9 9a9 9 0 01-9-9" />
+                                </svg>
+
+                                Retake
+
+                            </button>
+
+                        </div>
+
+
+                        <!-- Capture Hint -->
+                        <p class="mt-3 text-center text-xs text-slate-400">
+                            Make sure the ID is well-lit and completely inside the guide.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Captured Images -->
+                <div class="mt-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+
+                    <div class="mb-4">
+                        <h3 class="font-semibold text-slate-900">
+                            Captured ID
+                        </h3>
+
+                        <p class="mt-0.5 text-xs text-slate-500">
+                            Captured front and back images will appear here.
+                        </p>
+                    </div>
+
+
+                    <div class="grid grid-cols-2 gap-4">
+
+                        <!-- Front Preview -->
+                        <div>
+                            <div class="mb-2 flex items-center justify-between">
+                                <span class="text-xs font-semibold text-slate-600">
+                                    Front
+                                </span>
+
+                                <span id="frontCapturedBadge"
+                                    class="hidden rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-600">
+                                    Captured
+                                </span>
+                            </div>
+
+                            <div id="frontPreview"
+                                class="flex aspect-video items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
+                                <span class="text-xs text-slate-400">
+                                    No image
+                                </span>
+                            </div>
+                        </div>
+
+
+                        <!-- Back Preview -->
+                        <div>
+                            <div class="mb-2 flex items-center justify-between">
+                                <span class="text-xs font-semibold text-slate-600">
+                                    Back
+                                </span>
+
+                                <span id="backCapturedBadge"
+                                    class="hidden rounded-full bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-600">
+                                    Captured
+                                </span>
+                            </div>
+
+                            <div id="backPreview"
+                                class="flex aspect-video items-center justify-center overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
+                                <span class="text-xs text-slate-400">
+                                    No image
+                                </span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- =================================================
+             PERSON INFORMATION
+        ================================================== -->
+            <section class="xl:col-span-2">
+
+                <div class="sticky top-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+
+                    <!-- Information Header -->
+                    <div class="border-b border-slate-200 px-5 py-4">
+
+                        <div class="flex items-center justify-between">
+
+                            <div>
+                                <h3 class="font-semibold text-slate-900">
+                                    Person Information
+                                </h3>
+
+                                <p class="mt-0.5 text-xs text-slate-500">
+                                    Extracted information will appear here.
+                                </p>
+                            </div>
+
+                            <!-- OCR Status -->
+                            <span id="ocrStatus"
+                                class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
+                                Waiting
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Form -->
+                    <div class="space-y-4 p-5">
+
+                        <!-- Name -->
+                        <div>
+                            <label for="name" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                Name
+                            </label>
+
+                            <input id="name" type="text" placeholder="Full name"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                        </div>
+
+
+                        <!-- Birthdate + Age -->
+                        <div class="grid grid-cols-2 gap-3">
+
+                            <div>
+                                <label for="birthdate" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                    Birthdate
+                                </label>
+
+                                <input id="birthdate" type="text" placeholder="MM/DD/YYYY"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                            </div>
+
+
+                            <div>
+                                <label for="age" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                    Age
+                                </label>
+
+                                <input id="age" type="text" placeholder="Age"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                            </div>
+
+                        </div>
+
+
+                        <!-- Sex + Nationality -->
+                        <div class="grid grid-cols-2 gap-3">
+
+                            <div>
+                                <label for="sex" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                    Sex
+                                </label>
+
+                                <select id="sex"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                                    <option value="">Select</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                </select>
+                            </div>
+
+
+                            <div>
+                                <label for="nationality" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                    Nationality
+                                </label>
+
+                                <input id="nationality" type="text" placeholder="Nationality"
+                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                            </div>
+
+                        </div>
+
+
+                        <!-- Address -->
+                        <div>
+                            <label for="address" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                Address
+                            </label>
+
+                            <textarea id="address" rows="3" placeholder="Complete address"
+                                class="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"></textarea>
+                        </div>
+
+
+                        <!-- ID Number -->
+                        <div>
+                            <label for="idNumber" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                ID Number
+                            </label>
+
+                            <input id="idNumber" type="text" placeholder="Identification number"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                        </div>
+
+
+                        <!-- ID Type -->
+                        <div>
+                            <label for="idType" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                ID Type
+                            </label>
+
+                            <input id="idType" type="text" placeholder="e.g. Driver's License"
+                                class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                        </div>
+
+
+                        <!-- OCR Notice -->
+                        <div class="rounded-xl border border-blue-100 bg-blue-50 p-3">
+
+                            <div class="flex gap-2.5">
+
+                                <svg xmlns="http://www.w3.org/2000/svg" class="mt-0.5 h-4 w-4 shrink-0 text-blue-600"
+                                    fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M11.25 11.25l.041-.02a.75.75 0 011.059.68v3.34m0 0l.041-.02a.75.75 0 011.059.68m-1.1-.66v.01m-1.1-.01h.01M12 21a9 9 0 100-18 9 9 0 000 18z" />
+                                </svg>
+
+                                <p class="text-[11px] leading-relaxed text-blue-700">
+                                    Please review the extracted information before saving.
+                                    OCR results may require manual correction.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- Form Actions -->
+                    <div class="border-t border-slate-200 bg-slate-50 p-5">
+
+                        <div class="flex gap-3">
+
+                            <button id="clearButton" type="button"
+                                class="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
+                                Clear
+                            </button>
+
+                            <button id="confirmButton" type="button"
+                                class="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                Confirm
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <!-- =========================================================
+     HIDDEN CANVAS
+     Used later by app.js for image capture.
+========================================================== -->
+    <canvas id="captureCanvas" class="hidden"></canvas>
+
+
+    <!-- =========================================================
+     JAVASCRIPT
+========================================================== -->
+    <script src="app.js"></script>
+    ```
+
+</body>
+
+</html>
