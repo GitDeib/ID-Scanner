@@ -58,10 +58,8 @@ const nameField = document.getElementById("name");
 const birthdateField = document.getElementById("birthdate");
 const ageField = document.getElementById("age");
 const sexField = document.getElementById("sex");
-const nationalityField = document.getElementById("nationality");
 const addressField = document.getElementById("address");
 const idNumberField = document.getElementById("idNumber");
-const idTypeField = document.getElementById("idType");
 
 const allFields = document.querySelectorAll("[data-field]");
 
@@ -231,6 +229,48 @@ function showCameraError(message) {
 }
 
 // =========================================================
+// COMPRESS IMAGE BEFORE UPLOAD
+// =========================================================
+
+function compressImage(canvas, maxWidth = 1000, quality = 0.75) {
+
+    const scale = Math.min(
+        1,
+        maxWidth / canvas.width
+    );
+
+    const width = Math.round(
+        canvas.width * scale
+    );
+
+    const height = Math.round(
+        canvas.height * scale
+    );
+
+    const outputCanvas =
+        document.createElement("canvas");
+
+    outputCanvas.width = width;
+    outputCanvas.height = height;
+
+    const ctx =
+        outputCanvas.getContext("2d");
+
+    ctx.drawImage(
+        canvas,
+        0,
+        0,
+        width,
+        height
+    );
+
+    return outputCanvas.toDataURL(
+        "image/jpeg",
+        quality
+    );
+}
+
+// =========================================================
 // CAPTURE IMAGE
 // =========================================================
 
@@ -263,9 +303,10 @@ async function captureImage() {
         captureCanvas.height
     );
 
-    const imageData = captureCanvas.toDataURL(
-        "image/jpeg",
-        0.90
+    const imageData = compressImage(
+        captureCanvas,
+        1000,
+        0.75
     );
 
     // =====================================================
@@ -813,19 +854,6 @@ function extractPersonInformation() {
     }
 
     // =====================================================
-    // NATIONALITY
-    // =====================================================
-
-    const nationality =
-        findNationality(text);
-
-    if (nationality) {
-
-        nationalityField.value =
-            nationality;
-    }
-
-    // =====================================================
     // ID NUMBER
     // =====================================================
 
@@ -838,18 +866,6 @@ function extractPersonInformation() {
             idNumber;
     }
 
-    // =====================================================
-    // ID TYPE
-    // =====================================================
-
-    const idType =
-        findIDType(text);
-
-    if (idType) {
-
-        idTypeField.value =
-            idType;
-    }
 
     // =====================================================
     // NAME
@@ -885,10 +901,8 @@ function extractPersonInformation() {
     console.log("Birthdate:", birthdate);
     console.log("Age:", ageField.value);
     console.log("Sex:", sex);
-    console.log("Nationality:", nationality);
     console.log("Address:", address);
     console.log("ID Number:", idNumber);
-    console.log("ID Type:", idType);
 }
 
 // =========================================================
@@ -1179,44 +1193,6 @@ function findSex(text) {
     return "";
 }
 
-// =========================================================
-// FIND NATIONALITY
-// =========================================================
-
-function findNationality(text) {
-
-    const upper =
-        text.toUpperCase();
-
-    const match =
-        upper.match(
-            /\bNATIONALITY\s*[:\-]?\s*([A-Z ]{3,30})/
-        );
-
-    if (match) {
-
-        const value =
-            cleanField(match[1]);
-
-        // Stop at another known field
-        return value
-            .replace(
-                /\b(SEX|ADDRESS|BIRTHDATE|BIRTH|DATE|ID|IDENTIFICATION)\b.*$/i,
-                ""
-            )
-            .trim()
-            .replace(/\s+/g, " ");
-    }
-
-    if (
-        /\bFILIPINO\b/i.test(text) ||
-        /\bPHILIPPINE\b/i.test(text)
-    ) {
-        return "Filipino";
-    }
-
-    return "";
-}
 
 // =========================================================
 // FIND ID NUMBER
@@ -1259,119 +1235,6 @@ function findIDNumber(text) {
     return "";
 }
 
-// =========================================================
-// FIND ID TYPE
-// =========================================================
-
-function findIDType(text) {
-
-    const upper =
-        text.toUpperCase();
-
-    const knownTypes = [
-
-        "DRIVER'S LICENSE",
-        "DRIVERS LICENSE",
-        "DRIVER LICENSE",
-
-        "PHILSYS ID",
-        "PHILIPPINE IDENTIFICATION",
-        "NATIONAL ID",
-
-        "PASSPORT",
-        "UMID",
-        "POSTAL ID",
-        "PRC ID",
-
-        "SENIOR CITIZEN ID",
-
-        "PERSON WITH DISABILITY ID",
-        "PWD ID",
-
-        "VOTER'S ID",
-        "VOTERS ID",
-
-        "SSS ID",
-        "TIN ID",
-        "PHILHEALTH ID"
-    ];
-
-    for (const type of knownTypes) {
-
-        if (upper.includes(type)) {
-
-            return formatIDType(type);
-        }
-    }
-
-    return "";
-}
-
-// =========================================================
-// FORMAT ID TYPE
-// =========================================================
-
-function formatIDType(value) {
-
-    const replacements = {
-
-        "DRIVERS LICENSE":
-            "Driver's License",
-
-        "DRIVER LICENSE":
-            "Driver's License",
-
-        "DRIVER'S LICENSE":
-            "Driver's License",
-
-        "PHILSYS ID":
-            "PhilSys ID",
-
-        "PHILIPPINE IDENTIFICATION":
-            "PhilSys ID",
-
-        "NATIONAL ID":
-            "National ID",
-
-        "PASSPORT":
-            "Passport",
-
-        "UMID":
-            "UMID",
-
-        "POSTAL ID":
-            "Postal ID",
-
-        "PRC ID":
-            "PRC ID",
-
-        "SENIOR CITIZEN ID":
-            "Senior Citizen ID",
-
-        "PERSON WITH DISABILITY ID":
-            "PWD ID",
-
-        "PWD ID":
-            "PWD ID",
-
-        "VOTER'S ID":
-            "Voter's ID",
-
-        "VOTERS ID":
-            "Voter's ID",
-
-        "SSS ID":
-            "SSS ID",
-
-        "TIN ID":
-            "TIN ID",
-
-        "PHILHEALTH ID":
-            "PhilHealth ID"
-    };
-
-    return replacements[value] || value;
-}
 
 // =========================================================
 // FIND NAME
@@ -1457,7 +1320,6 @@ function findName(text) {
         if (
             upper.includes("REPUBLIC") ||
             upper.includes("PHILIPPINES") ||
-            upper.includes("NATIONALITY") ||
             upper.includes("ADDRESS") ||
             upper.includes("BIRTH") ||
             upper.includes("DATE") ||
@@ -1573,7 +1435,6 @@ function findAddress(text) {
                 next.toUpperCase();
 
             if (
-                upper.includes("NATIONALITY") ||
                 upper.includes("BIRTH") ||
                 upper.includes("SEX") ||
                 upper.includes("DATE OF BIRTH") ||
@@ -1640,7 +1501,6 @@ function isPossibleAddressLine(value) {
 
     if (
         upper === "ADDRESS" ||
-        upper === "NATIONALITY" ||
         upper === "SEX"
     ) {
         return false;
@@ -1874,15 +1734,58 @@ clearButton.addEventListener(
 
 async function submitToGoogleSheet() {
 
+
+    const requiredFields = [
+        document.getElementById("name"),
+        document.getElementById("birthdate"),
+        document.getElementById("age"),
+        document.getElementById("sex"),
+        document.getElementById("address"),
+        document.getElementById("idNumber")
+    ];
+
+    let firstInvalidField = null;
+
+    requiredFields.forEach(field => {
+
+        field.classList.remove(
+            "border-red-500",
+            "ring-2",
+            "ring-red-500/10"
+        );
+
+        if (!field.value.trim()) {
+
+            field.classList.add(
+                "border-red-500",
+                "ring-2",
+                "ring-red-500/10"
+            );
+
+            if (!firstInvalidField) {
+                firstInvalidField = field;
+            }
+        }
+
+    });
+
+
+    // Stop saving if something is missing
+    if (firstInvalidField) {
+
+        firstInvalidField.focus();
+
+        return;
+    }
+
+
     const data = {
         name: nameField.value.trim(),
         birthdate: birthdateField.value.trim(),
         age: ageField.value.trim(),
         sex: sexField.value.trim(),
-        nationality: nationalityField.value.trim(),
         address: addressField.value.trim(),
         idNumber: idNumberField.value.trim(),
-        idType: idTypeField.value.trim()
     };
 
     if (!data.name) {

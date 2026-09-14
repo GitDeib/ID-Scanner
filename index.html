@@ -490,99 +490,95 @@
                 <!-- =================================================
                  RIGHT: PERSON INFORMATION
             ================================================== -->
+                ```html
                 <section class="xl:col-span-2">
 
-                    <div class="sticky top-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div class="xl:sticky xl:top-6 rounded-2xl border border-slate-200 bg-white shadow-sm">
 
-                        <!-- Information Header -->
-                        <div class="border-b border-slate-200 px-5 py-4">
+                        <!-- Header -->
+                        <div class="flex items-center justify-between border-b border-slate-200 px-4 py-3">
 
-                            <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="text-sm font-semibold text-slate-900">
+                                    Person Information
+                                </h3>
 
-                                <div>
-                                    <h3 class="font-semibold text-slate-900">
-                                        Person Information
-                                    </h3>
-
-                                    <p class="mt-0.5 text-xs text-slate-500">
-                                        Review the extracted details before saving.
-                                    </p>
-                                </div>
-
-                                <!-- OCR Status -->
-                                <span id="ocrStatus"
-                                    class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-semibold text-slate-500">
-                                    Waiting
-                                </span>
-
+                                <p class="mt-0.5 text-[11px] text-slate-500">
+                                    Review details before saving.
+                                </p>
                             </div>
+
+                            <span id="ocrStatus"
+                                class="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-slate-500">
+                                Waiting
+                            </span>
 
                         </div>
 
 
                         <!-- Form -->
-                        <div class="space-y-4 p-5">
+                        <div class="space-y-3.5 p-4">
 
                             <!-- Name -->
                             <div>
-                                <label for="name" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                <label for="name" class="mb-1 block text-[11px] font-semibold text-slate-600">
                                     Name
                                 </label>
 
-                                <input id="name" data-field type="text" placeholder="Full name"
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                                <input id="name" data-field type="text" placeholder="Full name" required
+                                    class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
                             </div>
 
 
                             <!-- Birthdate + Age -->
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-2 gap-2.5">
 
                                 <div>
-                                    <label for="birthdate" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                    <label for="birthdate" class="mb-1 block text-[11px] font-semibold text-slate-600">
                                         Birthdate
                                     </label>
 
-                                    <input id="birthdate" data-field type="text" placeholder="MM/DD/YYYY"
-                                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                                    <input id="birthdate" data-field type="text" placeholder="MM/DD/YYYY" required
+                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
                                 </div>
 
-
                                 <div>
-                                    <label for="age" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                    <label for="age" class="mb-1 block text-[11px] font-semibold text-slate-600">
                                         Age
                                     </label>
 
                                     <input id="age" data-field type="text" placeholder="Age"
-                                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
                                 </div>
 
                             </div>
 
 
                             <!-- Sex + Nationality -->
-                            <div class="grid grid-cols-2 gap-3">
+                            <div class="grid grid-cols-2 gap-2.5">
 
                                 <div>
-                                    <label for="sex" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                    <label for="sex" class="mb-1 block text-[11px] font-semibold text-slate-600">
                                         Sex
                                     </label>
 
-                                    <select id="sex" data-field
-                                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                                    <select id="sex" data-field required
+                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+
                                         <option value="">Select</option>
                                         <option value="Male">Male</option>
                                         <option value="Female">Female</option>
+
                                     </select>
                                 </div>
 
-
                                 <div>
-                                    <label for="nationality" class="mb-1.5 block text-xs font-semibold text-slate-600">
-                                        Nationality
+                                    <label for="idNumber" class="mb-1 block text-[11px] font-semibold text-slate-600">
+                                        ID Number
                                     </label>
 
-                                    <input id="nationality" data-field type="text" placeholder="Nationality"
-                                        class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
+                                    <input id="idNumber" data-field type="text" placeholder="ID Number" required
+                                        class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
                                 </div>
 
                             </div>
@@ -590,74 +586,49 @@
 
                             <!-- Address -->
                             <div>
-                                <label for="address" class="mb-1.5 block text-xs font-semibold text-slate-600">
+                                <label for="address" class="mb-1 block text-[11px] font-semibold text-slate-600">
                                     Address
                                 </label>
 
-                                <textarea id="address" data-field rows="3" placeholder="Complete address"
-                                    class="w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"></textarea>
+                                <textarea id="address" data-field rows="2" placeholder="Complete address" required
+                                    class="w-full resize-none rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-800 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"></textarea>
                             </div>
 
 
-                            <!-- ID Number -->
-                            <div>
-                                <label for="idNumber" class="mb-1.5 block text-xs font-semibold text-slate-600">
-                                    ID Number
-                                </label>
+                            <!-- Notice -->
+                            <div class="flex items-start gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
 
-                                <input id="idNumber" data-field type="text" placeholder="Identification number"
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
-                            </div>
+                                <svg xmlns="http://www.w3.org/2000/svg"
+                                    class="mt-0.5 h-3.5 w-3.5 shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24"
+                                    stroke="currentColor" stroke-width="1.8">
 
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                        d="M12 9v3m0 4h.01M12 21a9 9 0 100-18 9 9 0 000 18z" />
 
-                            <!-- ID Type -->
-                            <div>
-                                <label for="idType" class="mb-1.5 block text-xs font-semibold text-slate-600">
-                                    ID Type
-                                </label>
+                                </svg>
 
-                                <input id="idType" data-field type="text" placeholder="e.g. Driver's License"
-                                    class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10">
-                            </div>
-
-
-                            <!-- OCR Notice -->
-                            <div class="rounded-xl border border-blue-100 bg-blue-50 p-3">
-
-                                <div class="flex gap-2.5">
-
-                                    <svg xmlns="http://www.w3.org/2000/svg"
-                                        class="mt-0.5 h-4 w-4 shrink-0 text-blue-600" fill="none" viewBox="0 0 24 24"
-                                        stroke="currentColor" stroke-width="1.8">
-                                        <path stroke-linecap="round" stroke-linejoin="round"
-                                            d="M11.25 11.25l.041-.02a.75.75 0 011.059.68v3.34m0 0l.041-.02a.75.75 0 011.059.68m-1.1-.66v.01m-1.1-.01h.01M12 21a9 9 0 100-18 9 9 0 000 18z" />
-                                    </svg>
-
-                                    <p class="text-[11px] leading-relaxed text-blue-700">
-                                        Please review the extracted information before saving.
-                                        OCR results may require manual correction.
-                                    </p>
-
-                                </div>
+                                <p class="text-[10px] leading-relaxed text-blue-700">
+                                    Please verify the extracted information before saving.
+                                </p>
 
                             </div>
 
                         </div>
 
 
-                        <!-- Form Actions -->
-                        <div class="border-t border-slate-200 bg-slate-50 p-5">
+                        <!-- Actions -->
+                        <div class="border-t border-slate-200 bg-slate-50 p-4">
 
-                            <div class="flex gap-3">
+                            <div class="flex gap-2.5">
 
                                 <button id="clearButton" type="button"
-                                    class="flex-1 rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
+                                    class="flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:ring-offset-2">
                                     Clear
                                 </button>
 
                                 <button id="confirmButton" type="button"
-                                    class="flex-1 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
-                                    Confirm
+                                    class="flex-1 rounded-lg bg-blue-600 px-3 py-2.5 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                    Confirm & Save
                                 </button>
 
                             </div>
