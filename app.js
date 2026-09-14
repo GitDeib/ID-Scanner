@@ -486,34 +486,13 @@ function setOCRStatus(message, type) {
     }
 }
 
-// =========================================================
-// FRONT PREVIEW
-// =========================================================
-
+// Simplified preview rendering — no more broken "< img" markup
 function showFrontPreview(imageData) {
-
-    frontPreview.innerHTML = `
-    < img
-src = "${imageData}"
-alt = "Captured ID front"
-class="h-full w-full object-cover"
-    />
-    `;
+    frontPreview.innerHTML = `<img src="${imageData}" alt="Captured ID front" class="h-full w-full object-cover">`;
 }
 
-// =========================================================
-// BACK PREVIEW
-// =========================================================
-
 function showBackPreview(imageData) {
-
-    backPreview.innerHTML = `
-    < img
-src = "${imageData}"
-alt = "Captured ID back"
-class="h-full w-full object-cover"
-    />
-    `;
+    backPreview.innerHTML = `<img src="${imageData}" alt="Captured ID back" class="h-full w-full object-cover">`;
 }
 
 // =========================================================
@@ -1950,187 +1929,58 @@ window.addEventListener(
 // SUBMIT TO GOOGLE SHEETS + GOOGLE DRIVE
 // =========================================================
 
+// One clean submitToGoogleSheet — delete BOTH old copies and this replaces them
 async function submitToGoogleSheet() {
 
-    // -----------------------------------------------------
-    // Get person information
-    // -----------------------------------------------------
-
     const data = {
-
-        name:
-            document.getElementById("name").value.trim(),
-
-        birthdate:
-            document.getElementById("birthdate").value.trim(),
-
-        age:
-            document.getElementById("age").value.trim(),
-
-        sex:
-            document.getElementById("sex").value.trim(),
-
-        nationality:
-            document.getElementById("nationality").value.trim(),
-
-        address:
-            document.getElementById("address").value.trim(),
-
-        idNumber:
-            document.getElementById("idNumber").value.trim(),
-
-        idType:
-            document.getElementById("idType").value.trim()
+        name: nameField.value.trim(),
+        birthdate: birthdateField.value.trim(),
+        age: ageField.value.trim(),
+        sex: sexField.value.trim(),
+        nationality: nationalityField.value.trim(),
+        address: addressField.value.trim(),
+        idNumber: idNumberField.value.trim(),
+        idType: idTypeField.value.trim()
     };
 
-
-    // -----------------------------------------------------
-    // Get captured images
-    // -----------------------------------------------------
-
-    const frontImage =
-        getPreviewImageData(frontPreview);
-
-    const backImage =
-        getPreviewImageData(backPreview);
-
-
-    // -----------------------------------------------------
-    // Validate information
-    // -----------------------------------------------------
-
     if (!data.name) {
-
-        alert(
-            "Please enter the person's name."
-        );
-
-        document
-            .getElementById("name")
-            .focus();
-
+        alert("Please enter the person's name.");
+        nameField.focus();
         return;
     }
-
 
     if (!data.idNumber) {
-
-        alert(
-            "Please enter the ID number."
-        );
-
-        document
-            .getElementById("idNumber")
-            .focus();
-
+        alert("Please enter the ID number.");
+        idNumberField.focus();
         return;
     }
-
-
-    // -----------------------------------------------------
-    // Validate images
-    // -----------------------------------------------------
 
     if (!frontImage) {
-
-        alert(
-            "Front ID image is missing."
-        );
-
+        alert("Front ID image is missing. Please capture the front of the ID.");
         return;
     }
-
 
     if (!backImage) {
-
-        alert(
-            "Back ID image is missing."
-        );
-
+        alert("Back ID image is missing. Please capture the back of the ID.");
         return;
     }
 
-
-    // -----------------------------------------------------
-    // Confirm button
-    // -----------------------------------------------------
-
-    const button =
-        document.getElementById(
-            "confirmButton"
-        );
-
-
-    const originalText =
-        button
-            ? button.textContent
-            : "Confirm";
-
-
-    if (button) {
-
-        button.disabled = true;
-
-        button.textContent =
-            "Saving...";
-    }
-
+    confirmButton.disabled = true;
+    const originalText = confirmButton.textContent;
+    confirmButton.textContent = "Saving...";
 
     try {
 
-        // -------------------------------------------------
-        // Prepare complete payload
-        // -------------------------------------------------
+        const payload = { ...data, frontImage, backImage };
 
-        const payload = {
+        console.log("Payload size (chars):", JSON.stringify(payload).length); // temporary — remove once confirmed working
 
-            name: data.name,
-
-            birthdate: data.birthdate,
-
-            age: data.age,
-
-            sex: data.sex,
-
-            nationality: data.nationality,
-
-            address: data.address,
-
-            idNumber: data.idNumber,
-
-            idType: data.idType,
-
-            frontImage: frontImage,
-
-            backImage: backImage
-        };
-
-
-        // -------------------------------------------------
-        // Send to Google Apps Script
-        // -------------------------------------------------
-
-        await fetch(
-            GOOGLE_SCRIPT_URL,
-            {
-                method: "POST",
-
-                mode: "no-cors",
-
-                headers: {
-                    "Content-Type":
-                        "text/plain;charset=utf-8"
-                },
-
-                body:
-                    JSON.stringify(payload)
-            }
-        );
-
-
-        // -------------------------------------------------
-        // Success
-        // -------------------------------------------------
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: { "Content-Type": "text/plain;charset=utf-8" },
+            body: JSON.stringify(payload)
+        });
 
         alert(
             "Successfully saved!\n\n" +
@@ -2138,39 +1988,24 @@ async function submitToGoogleSheet() {
             "Front and back ID images were saved to Google Drive."
         );
 
-
-        // -------------------------------------------------
-        // Clear scanner
-        // -------------------------------------------------
-
         clearEverything();
-
 
     } catch (error) {
 
-        console.error(
-            "Google Sheets / Drive submission error:",
-            error
-        );
-
+        console.error("Google Sheets / Drive submission error:", error);
 
         alert(
             "Failed to save the record.\n\n" +
             "Please check your internet connection and try again."
         );
 
-
     } finally {
-
-        if (button) {
-
-            button.disabled = false;
-
-            button.textContent =
-                originalText;
-        }
+        confirmButton.disabled = false;
+        confirmButton.textContent = originalText;
     }
 }
+
+confirmButton.addEventListener("click", submitToGoogleSheet);
 
 document
     .getElementById("confirmButton")
