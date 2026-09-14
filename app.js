@@ -232,7 +232,7 @@ function showCameraError(message) {
 // COMPRESS IMAGE BEFORE UPLOAD
 // =========================================================
 
-function compressImage(canvas, maxWidth = 1000, quality = 0.75) {
+function compressImage(canvas, maxWidth = 800, quality = 0.60) {
 
     const scale = Math.min(
         1,
@@ -305,8 +305,8 @@ async function captureImage() {
 
     const imageData = compressImage(
         captureCanvas,
-        1000,
-        0.75
+        800,
+        0.60
     );
 
     // =====================================================
