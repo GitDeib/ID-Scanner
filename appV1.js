@@ -1,13 +1,9 @@
 // =========================================================
-// CONFIG
+// DOM ELEMENTS
 // =========================================================
 
 const GOOGLE_SCRIPT_URL =
     "https://script.google.com/a/macros/umindanao.edu.ph/s/AKfycbzBX6kB3ewjsjKrmPqcFcyH7Hh_Kd0yowxicqOA47eq-6yAnOQIOUnt6NceVv5ozswIFg/exec";
-
-// =========================================================
-// DOM ELEMENTS
-// =========================================================
 
 const camera = document.getElementById("camera");
 const cameraPlaceholder = document.getElementById("cameraPlaceholder");
@@ -39,16 +35,6 @@ const backStatusText = document.getElementById("backStatusText");
 const completeStatusCircle = document.getElementById("completeStatusCircle");
 const completeStatusText = document.getElementById("completeStatusText");
 
-// Screens
-const captureScreen = document.getElementById("captureScreen");
-const processingScreen = document.getElementById("processingScreen");
-const reviewScreen = document.getElementById("reviewScreen");
-const processingText = document.getElementById("processingText");
-
-// Chips
-const chipContainer = document.getElementById("chipContainer");
-const noChipsMessage = document.getElementById("noChipsMessage");
-
 // =========================================================
 // FORM FIELDS
 // =========================================================
@@ -61,8 +47,6 @@ const nationalityField = document.getElementById("nationality");
 const addressField = document.getElementById("address");
 const idNumberField = document.getElementById("idNumber");
 const idTypeField = document.getElementById("idType");
-
-const allFields = document.querySelectorAll("[data-field]");
 
 // =========================================================
 // VARIABLES
@@ -78,24 +62,6 @@ let backImage = null;
 let frontOCRText = "";
 let backOCRText = "";
 let combinedOCRText = "";
-
-let selectedChipEl = null;
-let selectedChipText = null;
-
-// =========================================================
-// SCREEN SWITCHING
-// =========================================================
-
-function showScreen(name) {
-
-    [captureScreen, processingScreen, reviewScreen].forEach(screen => {
-        screen.classList.remove("active");
-    });
-
-    if (name === "capture") captureScreen.classList.add("active");
-    if (name === "processing") processingScreen.classList.add("active");
-    if (name === "review") reviewScreen.classList.add("active");
-}
 
 // =========================================================
 // START CAMERA
@@ -113,9 +79,6 @@ async function startCamera() {
 
         return;
     }
-
-    cameraPlaceholder.classList.add("hidden");
-    cameraPlaceholder.classList.remove("flex");
 
     cameraLoading.classList.remove("hidden");
     cameraLoading.classList.add("flex");
@@ -141,6 +104,8 @@ async function startCamera() {
         });
 
         camera.srcObject = cameraStream;
+
+        cameraPlaceholder.classList.add("hidden");
 
         cameraLoading.classList.add("hidden");
         cameraLoading.classList.remove("flex");
@@ -185,10 +150,9 @@ function stopCamera() {
 function showCameraError(message) {
 
     cameraPlaceholder.classList.remove("hidden");
-    cameraPlaceholder.classList.add("flex");
 
     cameraPlaceholder.innerHTML = `
-        <div class="px-6 text-center">
+    < div class="px-6 text-center" >
 
             <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
 
@@ -225,7 +189,7 @@ function showCameraError(message) {
                 Try Again
             </button>
 
-        </div>
+        </ >
     `;
 }
 
@@ -279,14 +243,10 @@ async function captureImage() {
 
         updateFrontCaptured();
 
-        captureButton.disabled = true;
-
         await runOCR(
             imageData,
             "front"
         );
-
-        captureButton.disabled = false;
 
         currentSide = "back";
 
@@ -312,17 +272,9 @@ async function captureImage() {
 
         backImage = imageData;
 
+        showBackPreview(imageData);
+
         updateBackCaptured();
-
-        captureButton.disabled = true;
-
-        stopCamera();
-
-        // Move to the processing screen while the back is read
-        // and the fields are extracted — nothing else for the
-        // person to do at this point but wait.
-        processingText.textContent = "Reading the back of the ID...";
-        showScreen("processing");
 
         await runOCR(
             imageData,
@@ -333,12 +285,36 @@ async function captureImage() {
 
         updateCompleteStep();
 
+        scanStatus.textContent =
+            "Both sides captured — review the information";
+
+        cameraInstruction.textContent =
+            "Both sides have been captured.";
+
+        captureButtonText.textContent =
+            "Scan Complete";
+
+        captureButton.disabled = true;
+
+        captureButton.classList.remove(
+            "bg-blue-600",
+            "hover:bg-blue-700"
+        );
+
+        captureButton.classList.add(
+            "bg-emerald-600",
+            "cursor-not-allowed"
+        );
+
+        retakeButton.classList.remove("hidden");
+        retakeButton.classList.add("flex");
+
         // =================================================
         // COMBINE OCR
         // =================================================
 
         combinedOCRText =
-            `${frontOCRText}\n${backOCRText}`;
+            `${frontOCRText} \n${backOCRText} `;
 
         console.log(
             "========================================"
@@ -357,32 +333,15 @@ async function captureImage() {
         );
 
         // =================================================
-        // EXTRACT PERSON INFORMATION (best-effort auto-fill)
+        // EXTRACT PERSON INFORMATION
         // =================================================
 
         extractPersonInformation();
-
-        // =================================================
-        // BUILD CHIPS (fallback for anything the extraction
-        // got wrong or missed)
-        // =================================================
-
-        buildChips(combinedOCRText);
-
-        // Now that both images and the form are ready, show
-        // the review screen with the images and form together.
-        showFrontPreview(frontImage);
-        showBackPreview(backImage);
 
         setOCRStatus(
             "Complete",
             "success"
         );
-
-        scanStatus.textContent =
-            "Both sides captured — review the information";
-
-        showScreen("review");
     }
 }
 
@@ -426,14 +385,9 @@ async function runOCR(imageData, side) {
                             );
 
                         setOCRStatus(
-                            `Reading ${side} ${percent}%`,
+                            `Reading ${side} ${percent}% `,
                             "loading"
                         );
-
-                        if (side === "back") {
-                            processingText.textContent =
-                                `Reading the back of the ID (${percent}%)...`;
-                        }
                     }
                 }
             }
@@ -466,7 +420,7 @@ async function runOCR(imageData, side) {
     } catch (error) {
 
         console.error(
-            `OCR error (${side}): `,
+            `OCR error(${side}): `,
             error
         );
 
@@ -532,16 +486,36 @@ function setOCRStatus(message, type) {
     }
 }
 
-// =========================================================
-// PREVIEW RENDERING
-// =========================================================
-
+// Simplified preview rendering — no more broken "< img" markup
 function showFrontPreview(imageData) {
     frontPreview.innerHTML = `<img src="${imageData}" alt="Captured ID front" class="h-full w-full object-cover">`;
 }
 
 function showBackPreview(imageData) {
     backPreview.innerHTML = `<img src="${imageData}" alt="Captured ID back" class="h-full w-full object-cover">`;
+}
+
+// =========================================================
+// GET IMAGE DATA FROM PREVIEW
+// =========================================================
+
+function getPreviewImageData(previewElement) {
+
+    if (!previewElement) {
+        return "";
+    }
+
+
+    const image =
+        previewElement.querySelector("img");
+
+
+    if (!image) {
+        return "";
+    }
+
+
+    return image.src || "";
 }
 
 // =========================================================
@@ -553,9 +527,20 @@ function updateFrontCaptured() {
     frontCapturedBadge.classList.remove("hidden");
 
     frontStatusCircle.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
+    < svg
+xmlns = "http://www.w3.org/2000/svg"
+class="h-4 w-4"
+fill = "none"
+viewBox = "0 0 24 24"
+stroke = "currentColor"
+stroke - width="2"
+    >
+    <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M5 13l4 4L19 7"
+    />
+        </ >
     `;
 
     frontStatusCircle.classList.remove(
@@ -611,9 +596,20 @@ function updateBackCaptured() {
     backCapturedBadge.classList.remove("hidden");
 
     backStatusCircle.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
+    < svg
+xmlns = "http://www.w3.org/2000/svg"
+class="h-4 w-4"
+fill = "none"
+viewBox = "0 0 24 24"
+stroke = "currentColor"
+stroke - width="2"
+    >
+    <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M5 13l4 4L19 7"
+    />
+        </ >
     `;
 
     backStatusCircle.classList.remove(
@@ -650,9 +646,20 @@ function updateCompleteStep() {
     );
 
     completeStatusCircle.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-        </svg>
+    < svg
+xmlns = "http://www.w3.org/2000/svg"
+class="h-4 w-4"
+fill = "none"
+viewBox = "0 0 24 24"
+stroke = "currentColor"
+stroke - width="2"
+    >
+    <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M5 13l4 4L19 7"
+    />
+        </ >
     `;
 
     completeStatusText.classList.remove(
@@ -664,98 +671,6 @@ function updateCompleteStep() {
         "font-semibold"
     );
 }
-
-// =========================================================
-// EXTRACTED-TEXT CHIPS (tap-to-assign, for phone use)
-// =========================================================
-
-function buildChips(rawText) {
-
-    chipContainer.innerHTML = "";
-    selectedChipEl = null;
-    selectedChipText = null;
-
-    const lines = rawText
-        .split(/\n/)
-        .map(line => line.trim().replace(/\s+/g, " "))
-        .filter(line => line.length > 1);
-
-    const uniqueLines = [...new Set(lines)];
-
-    if (uniqueLines.length === 0) {
-        noChipsMessage.classList.remove("hidden");
-        return;
-    }
-
-    noChipsMessage.classList.add("hidden");
-
-    uniqueLines.forEach(text => {
-
-        const chip = document.createElement("button");
-
-        chip.type = "button";
-
-        chip.className =
-            "chip rounded-full border border-slate-300 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-blue-400";
-
-        chip.textContent = text;
-
-        chip.dataset.used = "false";
-        chip.dataset.selected = "false";
-
-        chip.addEventListener("click", () => onChipTap(chip, text));
-
-        chipContainer.appendChild(chip);
-    });
-}
-
-function onChipTap(chip, text) {
-
-    // Tapping the already-selected chip deselects it.
-    if (selectedChipEl === chip) {
-        chip.dataset.selected = "false";
-        selectedChipEl = null;
-        selectedChipText = null;
-        return;
-    }
-
-    if (selectedChipEl) {
-        selectedChipEl.dataset.selected = "false";
-    }
-
-    chip.dataset.selected = "true";
-
-    selectedChipEl = chip;
-    selectedChipText = text;
-}
-
-// Tapping any field inserts the currently selected chip's text.
-allFields.forEach(field => {
-
-    field.addEventListener("focus", () => {
-
-        if (!selectedChipText) {
-            return;
-        }
-
-        field.value = selectedChipText;
-
-        field.classList.add("field-flash");
-
-        setTimeout(() => field.classList.remove("field-flash"), 500);
-
-        if (selectedChipEl) {
-            selectedChipEl.dataset.used = "true";
-            selectedChipEl.dataset.selected = "false";
-        }
-
-        selectedChipEl = null;
-        selectedChipText = null;
-
-        // Avoid popping the on-screen keyboard right after an assign-tap.
-        field.blur();
-    });
-});
 
 // =========================================================
 // EXTRACT PERSON INFORMATION
@@ -1660,7 +1575,7 @@ function cleanField(value) {
 }
 
 // =========================================================
-// RETAKE (full rescan — back to the capture screen)
+// RETAKE
 // =========================================================
 
 function retakeScan() {
@@ -1784,6 +1699,16 @@ function retakeScan() {
 
     captureButton.disabled = false;
 
+    captureButton.classList.remove(
+        "bg-emerald-600",
+        "cursor-not-allowed"
+    );
+
+    captureButton.classList.add(
+        "bg-blue-600",
+        "hover:bg-blue-700"
+    );
+
     captureButtonText.textContent =
         "Capture Front";
 
@@ -1798,7 +1723,7 @@ function retakeScan() {
         "Position the front of the ID inside the frame.";
 
     // =====================================================
-    // RESET OCR + CHIPS
+    // RESET OCR
     // =====================================================
 
     setOCRStatus(
@@ -1806,43 +1731,51 @@ function retakeScan() {
         "waiting"
     );
 
-    chipContainer.innerHTML = "";
-    noChipsMessage.classList.add("hidden");
-    selectedChipEl = null;
-    selectedChipText = null;
-
     // =====================================================
-    // BACK TO CAPTURE SCREEN
+    // HIDE RETAKE
     // =====================================================
 
-    showScreen("capture");
+    retakeButton.classList.add(
+        "hidden"
+    );
 
-    startCamera();
+    retakeButton.classList.remove(
+        "flex"
+    );
 }
 
 // =========================================================
-// CLEAR — wipes the form only, keeps the scanned images
-// and extracted text so the person doesn't have to rescan
-// just to fix a couple of fields.
+// CLEAR EVERYTHING
 // =========================================================
 
-function clearForm() {
+function clearEverything() {
 
-    allFields.forEach(field => {
-        field.value = "";
-    });
+    retakeScan();
 
-    chipContainer.querySelectorAll(".chip").forEach(chip => {
-        chip.dataset.used = "false";
-        chip.dataset.selected = "false";
-    });
+    // =====================================================
+    // CLEAR FORM
+    // =====================================================
 
-    selectedChipEl = null;
-    selectedChipText = null;
+    nameField.value = "";
+    birthdateField.value = "";
+    ageField.value = "";
+    sexField.value = "";
+    nationalityField.value = "";
+    addressField.value = "";
+    idNumberField.value = "";
+    idTypeField.value = "";
+
+    // =====================================================
+    // RESTART CAMERA
+    // =====================================================
+
+    if (!cameraStream) {
+        startCamera();
+    }
 }
 
 // =========================================================
-// BUTTON WIRING
+// CAPTURE BUTTON
 // =========================================================
 
 captureButton.addEventListener(
@@ -1850,20 +1783,153 @@ captureButton.addEventListener(
     captureImage
 );
 
+// =========================================================
+// RETAKE BUTTON
+// =========================================================
+
 retakeButton.addEventListener(
     "click",
     retakeScan
 );
 
+// =========================================================
+// CLEAR BUTTON
+// =========================================================
+
 clearButton.addEventListener(
     "click",
-    clearForm
+    clearEverything
+);
+
+// =========================================================
+// CONFIRM BUTTON
+// =========================================================
+
+async function submitToGoogleSheet() {
+
+    // -------------------------------------------------
+    // Get current values from the form
+    // -------------------------------------------------
+
+    const data = {
+        name: nameInput.value.trim(),
+        birthdate: birthdateInput.value.trim(),
+        age: ageInput.value.trim(),
+        sex: sexInput.value.trim(),
+        nationality: nationalityInput.value.trim(),
+        address: addressInput.value.trim(),
+        idNumber: idNumberInput.value.trim(),
+        idType: idTypeInput.value.trim()
+    };
+
+
+    // -------------------------------------------------
+    // Basic validation
+    // -------------------------------------------------
+
+    if (!data.name) {
+        alert("Please enter the person's name.");
+        nameInput.focus();
+        return;
+    }
+
+    if (!data.idNumber) {
+        alert("Please enter the ID number.");
+        idNumberInput.focus();
+        return;
+    }
+
+
+    // -------------------------------------------------
+    // Disable button while saving
+    // -------------------------------------------------
+
+    confirmButton.disabled = true;
+
+    const originalText = confirmButton.textContent;
+
+    confirmButton.textContent = "Saving...";
+
+
+    try {
+
+        // -------------------------------------------------
+        // Send data to Google Apps Script
+        // -------------------------------------------------
+
+        await fetch(GOOGLE_SCRIPT_URL, {
+            method: "POST",
+            mode: "no-cors",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8"
+            },
+            body: JSON.stringify(data)
+        });
+
+
+        // -------------------------------------------------
+        // Success
+        // -------------------------------------------------
+
+        alert("Successfully saved to Google Sheets.");
+
+
+        // -------------------------------------------------
+        // Clear scanner for next person
+        // -------------------------------------------------
+
+        clearEverything();
+
+
+    } catch (error) {
+
+        console.error(
+            "Google Sheets submission error:",
+            error
+        );
+
+        alert(
+            "Failed to save the record.\n\n" +
+            "Please check your internet connection and try again."
+        );
+
+    } finally {
+
+        confirmButton.disabled = false;
+
+        confirmButton.textContent = originalText;
+    }
+}
+
+// =========================================================
+// PAGE LOAD
+// =========================================================
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        startCamera();
+    }
+);
+
+// =========================================================
+// PAGE CLOSE
+// =========================================================
+
+window.addEventListener(
+    "beforeunload",
+    function () {
+
+        stopCamera();
+    }
 );
 
 // =========================================================
 // SUBMIT TO GOOGLE SHEETS + GOOGLE DRIVE
 // =========================================================
 
+// One clean submitToGoogleSheet — delete BOTH old copies and this replaces them
 async function submitToGoogleSheet() {
 
     const data = {
@@ -1907,6 +1973,8 @@ async function submitToGoogleSheet() {
 
         const payload = { ...data, frontImage, backImage };
 
+        console.log("Payload size (chars):", JSON.stringify(payload).length); // temporary — remove once confirmed working
+
         await fetch(GOOGLE_SCRIPT_URL, {
             method: "POST",
             mode: "no-cors",
@@ -1920,7 +1988,7 @@ async function submitToGoogleSheet() {
             "Front and back ID images were saved to Google Drive."
         );
 
-        retakeScan();
+        clearEverything();
 
     } catch (error) {
 
@@ -1939,26 +2007,6 @@ async function submitToGoogleSheet() {
 
 confirmButton.addEventListener("click", submitToGoogleSheet);
 
-// =========================================================
-// PAGE LOAD
-// =========================================================
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
-
-        startCamera();
-    }
-);
-
-// =========================================================
-// PAGE CLOSE
-// =========================================================
-
-window.addEventListener(
-    "beforeunload",
-    function () {
-
-        stopCamera();
-    }
-);
+document
+    .getElementById("confirmButton")
+    .addEventListener("click", submitToGoogleSheet);
