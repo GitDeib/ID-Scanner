@@ -1,7 +1,10 @@
+// =========================================================
+// DOM ELEMENTS
+// =========================================================
+
 const camera = document.getElementById("camera");
 const cameraPlaceholder = document.getElementById("cameraPlaceholder");
 const cameraLoading = document.getElementById("cameraLoading");
-
 const captureCanvas = document.getElementById("captureCanvas");
 
 const captureButton = document.getElementById("captureButton");
@@ -53,8 +56,6 @@ let currentSide = "front";
 let frontImage = null;
 let backImage = null;
 
-// Raw OCR text.
-// We keep these separately so we can improve extraction later.
 let frontOCRText = "";
 let backOCRText = "";
 let combinedOCRText = "";
@@ -65,9 +66,10 @@ let combinedOCRText = "";
 
 async function startCamera() {
 
-
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-
+    if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+    ) {
         showCameraError(
             "Camera access is not supported by this browser."
         );
@@ -75,18 +77,14 @@ async function startCamera() {
         return;
     }
 
-
     cameraLoading.classList.remove("hidden");
     cameraLoading.classList.add("flex");
-
 
     try {
 
         stopCamera();
 
-
         cameraStream = await navigator.mediaDevices.getUserMedia({
-
             video: {
                 width: {
                     ideal: 1280
@@ -100,9 +98,7 @@ async function startCamera() {
             },
 
             audio: false
-
         });
-
 
         camera.srcObject = cameraStream;
 
@@ -111,9 +107,7 @@ async function startCamera() {
         cameraLoading.classList.add("hidden");
         cameraLoading.classList.remove("flex");
 
-
         await camera.play();
-
 
     } catch (error) {
 
@@ -125,10 +119,7 @@ async function startCamera() {
         showCameraError(
             "Unable to access the camera. Please allow camera permission and try again."
         );
-
     }
-
-
 }
 
 // =========================================================
@@ -137,21 +128,16 @@ async function startCamera() {
 
 function stopCamera() {
 
-
     if (!cameraStream) {
         return;
     }
-
 
     cameraStream.getTracks().forEach(track => {
         track.stop();
     });
 
-
     cameraStream = null;
     camera.srcObject = null;
-
-
 }
 
 // =========================================================
@@ -160,59 +146,48 @@ function stopCamera() {
 
 function showCameraError(message) {
 
-
     cameraPlaceholder.classList.remove("hidden");
 
-
     cameraPlaceholder.innerHTML = `
+    < div class="px-6 text-center" >
 
-        < div class="px-6 text-center" >
+            <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
 
-        <div class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10">
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-8 w-8 text-red-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                >
+                    <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        d="M12 9v3.75m0 3.75h.008M10.29 3.86l-7.07 12.25A1.5 1.5 0 004.52 18.36h14.96a1.5 1.5 0 001.3-2.25L13.71 3.86a1.5 1.5 0 00-2.6 0z"
+                    />
+                </svg>
 
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-8 w-8 text-red-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="1.5"
+            </div>
+
+            <p class="text-sm font-medium text-white">
+                Camera unavailable
+            </p>
+
+            <p class="mt-2 text-xs leading-relaxed text-slate-400">
+                ${message}
+            </p>
+
+            <button
+                type="button"
+                onclick="startCamera()"
+                class="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
             >
+                Try Again
+            </button>
 
-                <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M12 9v3.75m0 3.75h.008M10.29 3.86l-7.07 12.25A1.5 1.5 0 004.52 18.36h14.96a1.5 1.5 0 001.3-2.25L13.71 3.86a1.5 1.5 0 00-2.6 0z"
-                />
-
-            </svg>
-
-        </div>
-
-
-        <p class="text-sm font-medium text-white">
-            Camera unavailable
-        </p>
-
-
-        <p class="mt-2 text-xs leading-relaxed text-slate-400">
-            ${message}
-        </p>
-
-
-        <button
-            type="button"
-            onclick="startCamera()"
-            class="mt-4 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold text-white hover:bg-blue-700"
-        >
-            Try Again
-        </button>
-
-    </ >
-
-        `;
-
-
+        </ >
+    `;
 }
 
 // =========================================================
@@ -221,14 +196,12 @@ function showCameraError(message) {
 
 async function captureImage() {
 
-
     if (!cameraStream) {
 
         alert("Camera is not active.");
 
         return;
     }
-
 
     if (!camera.videoWidth || !camera.videoHeight) {
 
@@ -237,19 +210,10 @@ async function captureImage() {
         return;
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Capture current video frame
-    |--------------------------------------------------------------------------
-    */
-
     captureCanvas.width = camera.videoWidth;
     captureCanvas.height = camera.videoHeight;
 
-
     const context = captureCanvas.getContext("2d");
-
 
     context.drawImage(
         camera,
@@ -259,24 +223,14 @@ async function captureImage() {
         captureCanvas.height
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Convert to JPEG
-    |--------------------------------------------------------------------------
-    */
-
     const imageData = captureCanvas.toDataURL(
         "image/jpeg",
         0.90
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | FRONT
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // FRONT
+    // =====================================================
 
     if (currentSide === "front") {
 
@@ -286,51 +240,30 @@ async function captureImage() {
 
         updateFrontCaptured();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | OCR FRONT
-        |--------------------------------------------------------------------------
-        */
-
         await runOCR(
             imageData,
             "front"
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Move to BACK
-        |--------------------------------------------------------------------------
-        */
-
         currentSide = "back";
 
         updateBackStep();
 
-
         scanStatus.textContent =
             "Front captured — ready to capture back";
-
 
         cameraInstruction.textContent =
             "Turn the ID over and position the back inside the frame.";
 
-
         captureButtonText.textContent =
             "Capture Back";
-
 
         return;
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | BACK
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // BACK
+    // =====================================================
 
     if (currentSide === "back") {
 
@@ -340,70 +273,45 @@ async function captureImage() {
 
         updateBackCaptured();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | OCR BACK
-        |--------------------------------------------------------------------------
-        */
-
         await runOCR(
             imageData,
             "back"
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | FINISHED
-        |--------------------------------------------------------------------------
-        */
-
         currentSide = "finished";
 
         updateCompleteStep();
 
-
         scanStatus.textContent =
             "Both sides captured — review the information";
-
 
         cameraInstruction.textContent =
             "Both sides have been captured.";
 
-
         captureButtonText.textContent =
             "Scan Complete";
 
-
         captureButton.disabled = true;
-
 
         captureButton.classList.remove(
             "bg-blue-600",
             "hover:bg-blue-700"
         );
 
-
         captureButton.classList.add(
             "bg-emerald-600",
             "cursor-not-allowed"
         );
 
-
         retakeButton.classList.remove("hidden");
         retakeButton.classList.add("flex");
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | FINAL OCR
-        |--------------------------------------------------------------------------
-        */
+        // =================================================
+        // COMBINE OCR
+        // =================================================
 
         combinedOCRText =
             `${frontOCRText} \n${backOCRText} `;
-
 
         console.log(
             "========================================"
@@ -421,34 +329,24 @@ async function captureImage() {
             combinedOCRText
         );
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Extract information
-        |--------------------------------------------------------------------------
-        */
+        // =================================================
+        // EXTRACT PERSON INFORMATION
+        // =================================================
 
         extractPersonInformation();
-
 
         setOCRStatus(
             "Complete",
             "success"
         );
     }
-
-
 }
 
 // =========================================================
 // TESSERACT OCR
 // =========================================================
 
-async function runOCR(
-    imageData,
-    side
-) {
-
+async function runOCR(imageData, side) {
 
     try {
 
@@ -457,16 +355,8 @@ async function runOCR(
             "loading"
         );
 
-
         scanStatus.textContent =
             `Reading ${side} of ID...`;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Make sure Tesseract exists
-        |--------------------------------------------------------------------------
-        */
 
         if (typeof Tesseract === "undefined") {
 
@@ -475,18 +365,10 @@ async function runOCR(
             );
         }
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Run OCR
-        |--------------------------------------------------------------------------
-        */
-
         const result = await Tesseract.recognize(
             imageData,
             "eng",
             {
-
                 logger: function (info) {
 
                     if (
@@ -499,28 +381,21 @@ async function runOCR(
                                 info.progress * 100
                             );
 
-
                         setOCRStatus(
                             `Reading ${side} ${percent}% `,
                             "loading"
                         );
                     }
-
                 }
-
             }
         );
-
 
         const text =
             result.data.text || "";
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Store raw OCR result
-        |--------------------------------------------------------------------------
-        */
+        // =================================================
+        // STORE RAW OCR
+        // =================================================
 
         if (side === "front") {
 
@@ -529,15 +404,7 @@ async function runOCR(
         } else {
 
             backOCRText = text;
-
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Console output
-        |--------------------------------------------------------------------------
-        */
 
         console.log(
             `========== ${side.toUpperCase()} OCR ==========`
@@ -545,9 +412,7 @@ async function runOCR(
 
         console.log(text);
 
-
         return text;
-
 
     } catch (error) {
 
@@ -556,37 +421,26 @@ async function runOCR(
             error
         );
 
-
         setOCRStatus(
             "OCR Failed",
             "error"
         );
 
-
         alert(
             `OCR failed while reading the ${side} of the ID.`
         );
 
-
         return "";
-
     }
-
-
 }
 
 // =========================================================
 // OCR STATUS
 // =========================================================
 
-function setOCRStatus(
-    message,
-    type
-) {
-
+function setOCRStatus(message, type) {
 
     ocrStatus.textContent = message;
-
 
     ocrStatus.classList.remove(
         "bg-slate-100",
@@ -598,7 +452,6 @@ function setOCRStatus(
         "bg-red-50",
         "text-red-600"
     );
-
 
     if (type === "loading") {
 
@@ -627,50 +480,37 @@ function setOCRStatus(
             "bg-slate-100",
             "text-slate-500"
         );
-
     }
-
-
 }
 
 // =========================================================
-// SHOW FRONT PREVIEW
+// FRONT PREVIEW
 // =========================================================
 
 function showFrontPreview(imageData) {
 
-
     frontPreview.innerHTML = `
-
-        < img
-    src = "${imageData}"
-    alt = "Captured ID front"
-    class="h-full w-full object-cover"
-        />
-
-        `;
-
-
+    < img
+src = "${imageData}"
+alt = "Captured ID front"
+class="h-full w-full object-cover"
+    />
+    `;
 }
 
 // =========================================================
-// SHOW BACK PREVIEW
+// BACK PREVIEW
 // =========================================================
 
 function showBackPreview(imageData) {
 
-
     backPreview.innerHTML = `
-
-        < img
-    src = "${imageData}"
-    alt = "Captured ID back"
-    class="h-full w-full object-cover"
-        />
-
-        `;
-
-
+    < img
+src = "${imageData}"
+alt = "Captured ID back"
+class="h-full w-full object-cover"
+    />
+    `;
 }
 
 // =========================================================
@@ -679,54 +519,40 @@ function showBackPreview(imageData) {
 
 function updateFrontCaptured() {
 
-
-    frontCapturedBadge.classList.remove(
-        "hidden"
-    );
-
+    frontCapturedBadge.classList.remove("hidden");
 
     frontStatusCircle.innerHTML = `
-
-        < svg
-    xmlns = "http://www.w3.org/2000/svg"
-    class="h-4 w-4"
-    fill = "none"
-    viewBox = "0 0 24 24"
-    stroke = "currentColor"
-    stroke - width="2"
-        >
-
-        <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M5 13l4 4L19 7"
-        />
-
-    </ >
-
-        `;
-
+    < svg
+xmlns = "http://www.w3.org/2000/svg"
+class="h-4 w-4"
+fill = "none"
+viewBox = "0 0 24 24"
+stroke = "currentColor"
+stroke - width="2"
+    >
+    <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M5 13l4 4L19 7"
+    />
+        </ >
+    `;
 
     frontStatusCircle.classList.remove(
         "bg-blue-600"
     );
 
-
     frontStatusCircle.classList.add(
         "bg-emerald-500"
     );
-
 
     frontStatusText.classList.remove(
         "text-blue-600"
     );
 
-
     frontStatusText.classList.add(
         "text-emerald-600"
     );
-
-
 }
 
 // =========================================================
@@ -735,31 +561,25 @@ function updateFrontCaptured() {
 
 function updateBackStep() {
 
-
     backStatusCircle.classList.remove(
         "bg-slate-200",
         "text-slate-500"
     );
-
 
     backStatusCircle.classList.add(
         "bg-blue-600",
         "text-white"
     );
 
-
     backStatusText.classList.remove(
         "text-slate-400",
         "font-medium"
     );
 
-
     backStatusText.classList.add(
         "text-blue-600",
         "font-semibold"
     );
-
-
 }
 
 // =========================================================
@@ -768,54 +588,40 @@ function updateBackStep() {
 
 function updateBackCaptured() {
 
-
-    backCapturedBadge.classList.remove(
-        "hidden"
-    );
-
+    backCapturedBadge.classList.remove("hidden");
 
     backStatusCircle.innerHTML = `
-
-        < svg
-    xmlns = "http://www.w3.org/2000/svg"
-    class="h-4 w-4"
-    fill = "none"
-    viewBox = "0 0 24 24"
-    stroke = "currentColor"
-    stroke - width="2"
-        >
-
-        <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M5 13l4 4L19 7"
-        />
-
-    </ >
-
-        `;
-
+    < svg
+xmlns = "http://www.w3.org/2000/svg"
+class="h-4 w-4"
+fill = "none"
+viewBox = "0 0 24 24"
+stroke = "currentColor"
+stroke - width="2"
+    >
+    <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M5 13l4 4L19 7"
+    />
+        </ >
+    `;
 
     backStatusCircle.classList.remove(
         "bg-blue-600"
     );
 
-
     backStatusCircle.classList.add(
         "bg-emerald-500"
     );
-
 
     backStatusText.classList.remove(
         "text-blue-600"
     );
 
-
     backStatusText.classList.add(
         "text-emerald-600"
     );
-
-
 }
 
 // =========================================================
@@ -824,250 +630,171 @@ function updateBackCaptured() {
 
 function updateCompleteStep() {
 
-
     completeStatusCircle.classList.remove(
         "bg-slate-200",
         "text-slate-500"
     );
-
 
     completeStatusCircle.classList.add(
         "bg-emerald-500",
         "text-white"
     );
 
-
     completeStatusCircle.innerHTML = `
-
-        < svg
-    xmlns = "http://www.w3.org/2000/svg"
-    class="h-4 w-4"
-    fill = "none"
-    viewBox = "0 0 24 24"
-    stroke = "currentColor"
-    stroke - width="2"
-        >
-
-        <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M5 13l4 4L19 7"
-        />
-
-    </ >
-
-        `;
-
+    < svg
+xmlns = "http://www.w3.org/2000/svg"
+class="h-4 w-4"
+fill = "none"
+viewBox = "0 0 24 24"
+stroke = "currentColor"
+stroke - width="2"
+    >
+    <path
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        d="M5 13l4 4L19 7"
+    />
+        </ >
+    `;
 
     completeStatusText.classList.remove(
         "text-slate-400"
     );
 
-
     completeStatusText.classList.add(
         "text-emerald-600",
         "font-semibold"
     );
-
-
 }
 
 // =========================================================
-// BASIC PERSON INFORMATION EXTRACTION
+// EXTRACT PERSON INFORMATION
 // =========================================================
 
 function extractPersonInformation() {
-
 
     const text =
         combinedOCRText
             .replace(/\r/g, "\n");
 
-
     console.log(
         "========== EXTRACTION =========="
     );
 
+    console.log(text);
 
-    /*
-    |--------------------------------------------------------------------------
-    | Birthdate
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // BIRTHDATE
+    // =====================================================
 
     const birthdate =
         findBirthdate(text);
-
 
     if (birthdate) {
 
         birthdateField.value =
             birthdate;
 
-
         const age =
             calculateAge(birthdate);
-
 
         if (age !== null) {
 
             ageField.value =
                 age;
-
         }
-
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Sex
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // SEX
+    // =====================================================
 
     const sex =
         findSex(text);
-
 
     if (sex) {
 
         sexField.value =
             sex;
-
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Nationality
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // NATIONALITY
+    // =====================================================
 
     const nationality =
         findNationality(text);
-
 
     if (nationality) {
 
         nationalityField.value =
             nationality;
-
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | ID Number
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // ID NUMBER
+    // =====================================================
 
     const idNumber =
         findIDNumber(text);
-
 
     if (idNumber) {
 
         idNumberField.value =
             idNumber;
-
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | ID Type
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // ID TYPE
+    // =====================================================
 
     const idType =
         findIDType(text);
-
 
     if (idType) {
 
         idTypeField.value =
             idType;
-
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Name
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // NAME
+    // =====================================================
 
     const name =
         findName(text);
-
 
     if (name) {
 
         nameField.value =
             name;
-
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Address
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // ADDRESS
+    // =====================================================
 
     const address =
         findAddress(text);
-
 
     if (address) {
 
         addressField.value =
             address;
-
     }
 
+    // =====================================================
+    // DEBUG
+    // =====================================================
 
-    console.log(
-        "Name:",
-        name
-    );
-
-    console.log(
-        "Birthdate:",
-        birthdate
-    );
-
-    console.log(
-        "Age:",
-        ageField.value
-    );
-
-    console.log(
-        "Sex:",
-        sex
-    );
-
-    console.log(
-        "Nationality:",
-        nationality
-    );
-
-    console.log(
-        "Address:",
-        address
-    );
-
-    console.log(
-        "ID Number:",
-        idNumber
-    );
-
-    console.log(
-        "ID Type:",
-        idType
-    );
-
-
+    console.log("Name:", name);
+    console.log("Birthdate:", birthdate);
+    console.log("Age:", ageField.value);
+    console.log("Sex:", sex);
+    console.log("Nationality:", nationality);
+    console.log("Address:", address);
+    console.log("ID Number:", idNumber);
+    console.log("ID Type:", idType);
 }
 
 // =========================================================
@@ -1076,39 +803,38 @@ function extractPersonInformation() {
 
 function findBirthdate(text) {
 
-
     const patterns = [
 
+        // YYYY-MM-DD
         /\b\d{4}[-/]\d{1,2}[-/]\d{1,2}\b/,
 
+        // MM/DD/YYYY
         /\b\d{1,2}[-/]\d{1,2}[-/]\d{4}\b/,
 
-        /\b\d{1,2}\s+(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\s+\d{4}\b/i,
+        // DD MONTH YYYY
+        /\b\d{1,2}\s+(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+\d{4}\b/i,
 
-        /\b(JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*\s+\d{1,2},?\s+\d{4}\b/i
-
+        // MONTH DD YYYY
+        /\b(JANUARY|FEBRUARY|MARCH|APRIL|MAY|JUNE|JULY|AUGUST|SEPTEMBER|OCTOBER|NOVEMBER|DECEMBER|JAN|FEB|MAR|APR|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s+\d{1,2},?\s+\d{4}\b/i
     ];
-
 
     for (const pattern of patterns) {
 
         const match =
             text.match(pattern);
 
-
         if (match) {
 
-            return normalizeDate(
-                match[0]
-            );
+            const normalized =
+                normalizeDate(match[0]);
 
+            if (normalized) {
+                return normalized;
+            }
         }
     }
 
-
     return "";
-
-
 }
 
 // =========================================================
@@ -1117,55 +843,138 @@ function findBirthdate(text) {
 
 function normalizeDate(value) {
 
-
     value =
         value
             .trim()
             .replace(/\./g, "/")
             .replace(/-/g, "/");
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | YYYY/MM/DD
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // YYYY/MM/DD
+    // =====================================================
 
     let match =
         value.match(
             /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/
         );
 
-
     if (match) {
 
-        return `${match[2].padStart(2, "0")} /${match[3].padStart(2, "0")}/${match[1]} `;
-
+        return (
+            `${match[2].padStart(2, "0")}/` +
+            `${match[3].padStart(2, "0")}/` +
+            `${match[1]}`
+        );
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | MM/DD/YYYY
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // MM/DD/YYYY
+    // =====================================================
 
     match =
         value.match(
             /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
         );
 
+    if (match) {
+
+        return (
+            `${match[1].padStart(2, "0")}/` +
+            `${match[2].padStart(2, "0")}/` +
+            `${match[3]}`
+        );
+    }
+
+    // =====================================================
+    // MONTH NAME
+    // =====================================================
+
+    const monthNames = {
+        JAN: "01",
+        JANUARY: "01",
+
+        FEB: "02",
+        FEBRUARY: "02",
+
+        MAR: "03",
+        MARCH: "03",
+
+        APR: "04",
+        APRIL: "04",
+
+        MAY: "05",
+
+        JUN: "06",
+        JUNE: "06",
+
+        JUL: "07",
+        JULY: "07",
+
+        AUG: "08",
+        AUGUST: "08",
+
+        SEP: "09",
+        SEPTEMBER: "09",
+
+        OCT: "10",
+        OCTOBER: "10",
+
+        NOV: "11",
+        NOVEMBER: "11",
+
+        DEC: "12",
+        DECEMBER: "12"
+    };
+
+    match =
+        value.match(
+            /^(\d{1,2})\s+([A-Z]+)\s+(\d{4})$/i
+        );
 
     if (match) {
 
-        return `${match[1].padStart(2, "0")} /${match[2].padStart(2, "0")}/${match[3]} `;
+        const day =
+            match[1].padStart(2, "0");
 
+        const month =
+            monthNames[
+            match[2].toUpperCase()
+            ];
+
+        const year =
+            match[3];
+
+        if (month) {
+
+            return `${month}/${day}/${year}`;
+        }
     }
 
+    match =
+        value.match(
+            /^([A-Z]+)\s+(\d{1,2}),?\s+(\d{4})$/i
+        );
 
-    return value;
+    if (match) {
 
+        const month =
+            monthNames[
+            match[1].toUpperCase()
+            ];
 
+        const day =
+            match[2].padStart(2, "0");
+
+        const year =
+            match[3];
+
+        if (month) {
+
+            return `${month}/${day}/${year}`;
+        }
+    }
+
+    return "";
 }
 
 // =========================================================
@@ -1174,40 +983,29 @@ function normalizeDate(value) {
 
 function calculateAge(birthdate) {
 
-
     const parts =
         birthdate.split("/");
 
-
     if (parts.length !== 3) {
-
         return null;
-
     }
-
 
     const month =
         parseInt(parts[0], 10) - 1;
 
-
     const day =
         parseInt(parts[1], 10);
 
-
     const year =
         parseInt(parts[2], 10);
-
 
     if (
         Number.isNaN(month) ||
         Number.isNaN(day) ||
         Number.isNaN(year)
     ) {
-
         return null;
-
     }
-
 
     const birth =
         new Date(
@@ -1216,26 +1014,20 @@ function calculateAge(birthdate) {
             day
         );
 
-
     if (
         birth.getFullYear() !== year ||
         birth.getMonth() !== month ||
         birth.getDate() !== day
     ) {
-
         return null;
-
     }
-
 
     const today =
         new Date();
 
-
     let age =
         today.getFullYear() -
         birth.getFullYear();
-
 
     const birthdayPassed =
         (
@@ -1246,19 +1038,13 @@ function calculateAge(birthdate) {
             today.getDate() >= birth.getDate()
         );
 
-
     if (!birthdayPassed) {
-
         age--;
-
     }
-
 
     return age >= 0
         ? age
         : null;
-
-
 }
 
 // =========================================================
@@ -1267,36 +1053,36 @@ function calculateAge(birthdate) {
 
 function findSex(text) {
 
-
     const upper =
         text.toUpperCase();
 
+    // Labeled SEX field
+    let match =
+        upper.match(
+            /\bSEX\s*[:\-]?\s*(FEMALE|MALE|F|M)\b/
+        );
 
-    if (
-        /\bSEX\s*[:\-]?\s*(FEMALE|F)\b/.test(
-            upper
-        )
-    ) {
+    if (match) {
 
-        return "Female";
+        const value =
+            match[1];
 
+        if (
+            value === "FEMALE" ||
+            value === "F"
+        ) {
+            return "Female";
+        }
+
+        if (
+            value === "MALE" ||
+            value === "M"
+        ) {
+            return "Male";
+        }
     }
-
-
-    if (
-        /\bSEX\s*[:\-]?\s*(MALE|M)\b/.test(
-            upper
-        )
-    ) {
-
-        return "Male";
-
-    }
-
 
     return "";
-
-
 }
 
 // =========================================================
@@ -1305,47 +1091,37 @@ function findSex(text) {
 
 function findNationality(text) {
 
-
     const upper =
         text.toUpperCase();
-
 
     const match =
         upper.match(
             /\bNATIONALITY\s*[:\-]?\s*([A-Z ]{3,30})/
         );
 
-
     if (match) {
 
-        return cleanField(
-            match[1]
-        );
+        const value =
+            cleanField(match[1]);
 
+        // Stop at another known field
+        return value
+            .replace(
+                /\b(SEX|ADDRESS|BIRTHDATE|BIRTH|DATE|ID|IDENTIFICATION)\b.*$/i,
+                ""
+            )
+            .trim()
+            .replace(/\s+/g, " ");
     }
-
 
     if (
-        upper.includes("FILIPINO")
+        /\bFILIPINO\b/i.test(text) ||
+        /\bPHILIPPINE\b/i.test(text)
     ) {
-
         return "Filipino";
-
     }
-
-
-    if (
-        upper.includes("PHILIPPINE")
-    ) {
-
-        return "Filipino";
-
-    }
-
 
     return "";
-
-
 }
 
 // =========================================================
@@ -1354,44 +1130,39 @@ function findNationality(text) {
 
 function findIDNumber(text) {
 
-
     const patterns = [
 
+        // ID NO: ABC123456
         /\b(?:ID\s*(?:NO|NUMBER)|IDENTIFICATION\s*(?:NO|NUMBER))\s*[:#\-]?\s*([A-Z0-9\-]{5,30})\b/i,
 
-        /\b[A-Z]{1,4}\-\d{4,15}\b/,
+        // Example: ABC-123456
+        /\b[A-Z]{1,4}-\d{4,15}\b/i,
 
-        /\b\d{2}\-\d{5,15}\b/
+        // Example: 14-000735
+        /\b\d{2}-\d{5,15}\b/
 
     ];
-
 
     for (const pattern of patterns) {
 
         const match =
             text.match(pattern);
 
-
         if (!match) {
             continue;
         }
 
-
         if (match[1]) {
 
-            return match[1].trim();
-
+            return match[1]
+                .trim();
         }
 
-
-        return match[0].trim();
-
+        return match[0]
+            .trim();
     }
 
-
     return "";
-
-
 }
 
 // =========================================================
@@ -1400,50 +1171,46 @@ function findIDNumber(text) {
 
 function findIDType(text) {
 
-
     const upper =
         text.toUpperCase();
-
 
     const knownTypes = [
 
         "DRIVER'S LICENSE",
         "DRIVERS LICENSE",
         "DRIVER LICENSE",
+
         "PHILSYS ID",
         "PHILIPPINE IDENTIFICATION",
         "NATIONAL ID",
+
         "PASSPORT",
         "UMID",
         "POSTAL ID",
         "PRC ID",
+
         "SENIOR CITIZEN ID",
+
         "PERSON WITH DISABILITY ID",
         "PWD ID",
+
         "VOTER'S ID",
         "VOTERS ID",
+
         "SSS ID",
         "TIN ID",
         "PHILHEALTH ID"
-
     ];
-
 
     for (const type of knownTypes) {
 
         if (upper.includes(type)) {
 
-            return formatIDType(
-                type
-            );
-
+            return formatIDType(type);
         }
     }
 
-
     return "";
-
-
 }
 
 // =========================================================
@@ -1451,7 +1218,6 @@ function findIDType(text) {
 // =========================================================
 
 function formatIDType(value) {
-
 
     const replacements = {
 
@@ -1508,13 +1274,9 @@ function formatIDType(value) {
 
         "PHILHEALTH ID":
             "PhilHealth ID"
-
     };
 
-
     return replacements[value] || value;
-
-
 }
 
 // =========================================================
@@ -1522,7 +1284,6 @@ function formatIDType(value) {
 // =========================================================
 
 function findName(text) {
-
 
     const lines =
         text
@@ -1534,72 +1295,55 @@ function findName(text) {
             )
             .filter(Boolean);
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Look for labeled name
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // LABELED NAME
+    // =====================================================
 
     for (let i = 0; i < lines.length; i++) {
 
         const line =
             lines[i];
 
-
         const match =
             line.match(
                 /^(?:NAME|FULL NAME)\s*[:\-]?\s*(.+)$/i
             );
 
-
         if (match) {
 
             const candidate =
-                cleanName(
-                    match[1]
-                );
+                cleanName(match[1]);
 
-
-            if (isPossibleName(candidate)) {
-
+            if (
+                isPossibleName(candidate)
+            ) {
                 return candidate;
-
             }
-
 
             if (
                 lines[i + 1] &&
-                isPossibleName(lines[i + 1])
+                isPossibleName(
+                    cleanName(lines[i + 1])
+                )
             ) {
 
                 return cleanName(
                     lines[i + 1]
                 );
-
             }
         }
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Look for common Philippine ID name format:
-    |
-    | LAST NAME
-    | FIRST NAME
-    | MIDDLE NAME
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // COMMON PHILIPPINE ID FORMAT
+    // =====================================================
 
     const nameCandidates = [];
-
 
     for (const line of lines) {
 
         const cleaned =
             cleanName(line);
-
 
         if (
             isPossibleName(cleaned)
@@ -1608,23 +1352,13 @@ function findName(text) {
             nameCandidates.push(
                 cleaned
             );
-
         }
-
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Avoid random OCR lines
-    |--------------------------------------------------------------------------
-    */
 
     for (const candidate of nameCandidates) {
 
         const upper =
             candidate.toUpperCase();
-
 
         if (
             upper.includes("REPUBLIC") ||
@@ -1634,13 +1368,12 @@ function findName(text) {
             upper.includes("BIRTH") ||
             upper.includes("DATE") ||
             upper.includes("LICENSE") ||
-            upper.includes("IDENTIFICATION")
+            upper.includes("IDENTIFICATION") ||
+            upper.includes("PASSPORT") ||
+            upper.includes("NATIONAL ID")
         ) {
-
             continue;
-
         }
-
 
         if (
             candidate
@@ -1649,22 +1382,17 @@ function findName(text) {
         ) {
 
             return candidate;
-
         }
     }
 
-
     return "";
-
-
 }
 
 // =========================================================
-// NAME CLEANER
+// CLEAN NAME
 // =========================================================
 
 function cleanName(value) {
-
 
     return value
         .replace(
@@ -1673,8 +1401,6 @@ function cleanName(value) {
         )
         .replace(/\s+/g, " ")
         .trim();
-
-
 }
 
 // =========================================================
@@ -1683,31 +1409,24 @@ function cleanName(value) {
 
 function isPossibleName(value) {
 
-
     if (!value) {
         return false;
     }
 
-
     const words =
         value.split(" ");
-
 
     if (words.length < 2) {
         return false;
     }
 
-
     if (value.length < 4) {
         return false;
     }
 
-
     return words.every(word =>
         /^[A-Za-zÀ-ÿ.'\-]+$/.test(word)
     );
-
-
 }
 
 // =========================================================
@@ -1715,7 +1434,6 @@ function isPossibleName(value) {
 // =========================================================
 
 function findAddress(text) {
-
 
     const lines =
         text
@@ -1727,40 +1445,26 @@ function findAddress(text) {
             )
             .filter(Boolean);
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Look for ADDRESS label
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // LABELED ADDRESS
+    // =====================================================
 
     for (let i = 0; i < lines.length; i++) {
 
         const line =
             lines[i];
 
-
         const match =
             line.match(
                 /^ADDRESS\s*[:\-]?\s*(.*)$/i
             );
 
-
         if (!match) {
             continue;
         }
 
-
         let address =
             match[1].trim();
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | If address continues on following lines,
-        | collect them.
-        |--------------------------------------------------------------------------
-        */
 
         for (
             let j = i + 1;
@@ -1771,49 +1475,39 @@ function findAddress(text) {
             const next =
                 lines[j];
 
-
             const upper =
                 next.toUpperCase();
-
 
             if (
                 upper.includes("NATIONALITY") ||
                 upper.includes("BIRTH") ||
                 upper.includes("SEX") ||
                 upper.includes("DATE OF BIRTH") ||
-                upper.includes("ID NO")
+                upper.includes("ID NO") ||
+                upper.includes("ID NUMBER")
             ) {
-
                 break;
-
             }
 
-
-            if (isPossibleAddressLine(next)) {
+            if (
+                isPossibleAddressLine(next)
+            ) {
 
                 address =
                     address
-                        ? `${address}, ${next} `
+                        ? `${address}, ${next}`
                         : next;
-
             }
-
         }
 
-
         if (address) {
-
             return address;
-
         }
     }
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Fallback: look for typical address indicators
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // FALLBACK
+    // =====================================================
 
     const addressLines =
         lines.filter(line => {
@@ -1821,27 +1515,20 @@ function findAddress(text) {
             const upper =
                 line.toUpperCase();
 
-
             return (
                 /\b(ST|STREET|ROAD|RD|AVE|AVENUE|BLVD|BARANGAY|BRGY|CITY|DAVAO|VILLAGE)\b/
                     .test(upper)
             );
-
         });
-
 
     if (addressLines.length) {
 
         return addressLines
             .slice(0, 3)
             .join(", ");
-
     }
 
-
     return "";
-
-
 }
 
 // =========================================================
@@ -1850,33 +1537,25 @@ function findAddress(text) {
 
 function isPossibleAddressLine(value) {
 
-
     if (!value) {
         return false;
     }
 
-
     const upper =
         value.toUpperCase();
-
 
     if (
         upper === "ADDRESS" ||
         upper === "NATIONALITY" ||
         upper === "SEX"
     ) {
-
         return false;
-
     }
-
 
     return (
         value.length >= 4 &&
         /[A-Za-z0-9]/.test(value)
     );
-
-
 }
 
 // =========================================================
@@ -1885,12 +1564,9 @@ function isPossibleAddressLine(value) {
 
 function cleanField(value) {
 
-
     return value
         .replace(/\s+/g, " ")
         .trim();
-
-
 }
 
 // =========================================================
@@ -1898,7 +1574,6 @@ function cleanField(value) {
 // =========================================================
 
 function retakeScan() {
-
 
     frontImage = null;
     backImage = null;
@@ -1909,84 +1584,61 @@ function retakeScan() {
 
     currentSide = "front";
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset previews
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESET PREVIEWS
+    // =====================================================
 
     frontPreview.innerHTML = `
-
-        < span class="text-xs text-slate-400" >
+        <span class="text-xs text-slate-400">
             No image
-    </ >
-
-        `;
-
+        </span>
+    `;
 
     backPreview.innerHTML = `
-
-        < span class="text-xs text-slate-400" >
+        <span class="text-xs text-slate-400">
             No image
-    </ >
+        </span>
+    `;
 
-        `;
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset badges
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESET BADGES
+    // =====================================================
 
     frontCapturedBadge.classList.add(
         "hidden"
     );
 
-
     backCapturedBadge.classList.add(
         "hidden"
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset front status
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESET FRONT
+    // =====================================================
 
     frontStatusCircle.innerHTML = "1";
-
 
     frontStatusCircle.classList.remove(
         "bg-emerald-500"
     );
 
-
     frontStatusCircle.classList.add(
         "bg-blue-600"
     );
-
 
     frontStatusText.classList.remove(
         "text-emerald-600"
     );
 
-
     frontStatusText.classList.add(
         "text-blue-600"
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset back status
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESET BACK
+    // =====================================================
 
     backStatusCircle.innerHTML = "2";
-
 
     backStatusCircle.classList.remove(
         "bg-blue-600",
@@ -1994,12 +1646,10 @@ function retakeScan() {
         "text-white"
     );
 
-
     backStatusCircle.classList.add(
         "bg-slate-200",
         "text-slate-500"
     );
-
 
     backStatusText.classList.remove(
         "text-blue-600",
@@ -2007,113 +1657,86 @@ function retakeScan() {
         "font-semibold"
     );
 
-
     backStatusText.classList.add(
         "text-slate-400",
         "font-medium"
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset complete
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESET COMPLETE
+    // =====================================================
 
     completeStatusCircle.innerHTML = "3";
-
 
     completeStatusCircle.classList.remove(
         "bg-emerald-500",
         "text-white"
     );
 
-
     completeStatusCircle.classList.add(
         "bg-slate-200",
         "text-slate-500"
     );
-
 
     completeStatusText.classList.remove(
         "text-emerald-600",
         "font-semibold"
     );
 
-
     completeStatusText.classList.add(
         "text-slate-400",
         "font-medium"
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset capture button
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESET CAPTURE BUTTON
+    // =====================================================
 
     captureButton.disabled = false;
-
 
     captureButton.classList.remove(
         "bg-emerald-600",
         "cursor-not-allowed"
     );
 
-
     captureButton.classList.add(
         "bg-blue-600",
         "hover:bg-blue-700"
     );
 
-
     captureButtonText.textContent =
         "Capture Front";
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset instructions
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESET TEXT
+    // =====================================================
 
     scanStatus.textContent =
         "Ready to capture front";
 
-
     cameraInstruction.textContent =
         "Position the front of the ID inside the frame.";
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Reset OCR status
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESET OCR
+    // =====================================================
 
     setOCRStatus(
         "Waiting",
         "waiting"
     );
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Hide retake
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // HIDE RETAKE
+    // =====================================================
 
     retakeButton.classList.add(
         "hidden"
     );
 
-
     retakeButton.classList.remove(
         "flex"
     );
-
-
 }
 
 // =========================================================
@@ -2122,15 +1745,11 @@ function retakeScan() {
 
 function clearEverything() {
 
-
     retakeScan();
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Clear form
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // CLEAR FORM
+    // =====================================================
 
     nameField.value = "";
     birthdateField.value = "";
@@ -2141,20 +1760,13 @@ function clearEverything() {
     idNumberField.value = "";
     idTypeField.value = "";
 
-
-    /*
-    |--------------------------------------------------------------------------
-    | Restart camera
-    |--------------------------------------------------------------------------
-    */
+    // =====================================================
+    // RESTART CAMERA
+    // =====================================================
 
     if (!cameraStream) {
-
         startCamera();
-
     }
-
-
 }
 
 // =========================================================
@@ -2192,14 +1804,10 @@ confirmButton.addEventListener(
     "click",
     function () {
 
-
         alert(
             "Google Sheets saving will be connected later."
         );
-
     }
-
-
 );
 
 // =========================================================
@@ -2210,12 +1818,8 @@ document.addEventListener(
     "DOMContentLoaded",
     function () {
 
-
         startCamera();
-
     }
-
-
 );
 
 // =========================================================
@@ -2226,10 +1830,6 @@ window.addEventListener(
     "beforeunload",
     function () {
 
-
         stopCamera();
-
     }
-
-
 );
