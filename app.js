@@ -44,7 +44,6 @@ const fields = {
 // =========================================================
 let cameraStream = null;
 let scannedIdImage = null;
-let alreadySaved = false; // tracks whether quick-save already ran for this capture
 
 // =========================================================
 // SCREENS
@@ -140,18 +139,16 @@ async function captureImage() {
     scannedIdCapturedBadge.classList.remove("hidden");
     stopCamera();
 
-    alreadySaved = false;
-    processingText.textContent = "Extracting & saving...";
+    processingText.textContent = "Reading the ID...";
     showScreen("processing");
     setOCRStatus("Extracting...", "loading");
 
     try {
-        // Single round trip: server extracts via OCR AND saves the record.
-        const result = await quickSaveAndExtract(scannedIdImage);
-        applyExtractedData(result.data);
-        alreadySaved = true;
-        setOCRStatus("Saved", "success");
-        scanStatus.textContent = "ID captured, extracted & saved";
+        // Extract only — nothing is saved to Sheets/Drive yet.
+        const extracted = await extractIdData(scannedIdImage);
+        applyExtractedData(extracted);
+        setOCRStatus("Extracted", "success");
+        scanStatus.textContent = "ID captured — review before saving";
     } catch (error) {
         console.error("Extraction error:", error);
         setOCRStatus("Extraction failed", "error");
@@ -164,13 +161,13 @@ async function captureImage() {
 }
 
 // =========================================================
-// STRUCTOCR EXTRACTION + SAVE (one server round trip)
+// STRUCTOCR EXTRACTION (extract only, no save)
 // =========================================================
-async function quickSaveAndExtract(image) {
+async function extractIdData(image) {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "quickSave", scannedIdImage: image }),
+        body: JSON.stringify({ action: "extract", scannedIdImage: image }),
     });
 
     const raw = await res.text();
@@ -181,7 +178,7 @@ async function quickSaveAndExtract(image) {
         throw new Error("Server did not return valid JSON. See console for the raw response.");
     }
     if (!result.success) throw new Error(result.message || "Extraction failed.");
-    return result;
+    return result.data;
 }
 
 function applyExtractedData(data) {
@@ -246,7 +243,6 @@ function resetCompleteStep() {
 // =========================================================
 function retakeScan() {
     scannedIdImage = null;
-    alreadySaved = false;
     scannedIdPreview.innerHTML = `<span class="text-xs text-slate-400">No image</span>`;
     scannedIdCapturedBadge.classList.add("hidden");
     resetCompleteStep();
