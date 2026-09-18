@@ -56,12 +56,47 @@ const fields = {
 let cameraStream = null;
 let scannedIdImage = null;
 
+// Identifies the record currently being worked on. Every save attempt
+// for the same record sends the same id, so if a save completes on the
+// server but the response is lost on the way back, tapping Save again
+// is recognised as a retry instead of creating a second row and two
+// more Drive files. A new id is minted only when a new scan starts.
+let clientRequestId = null;
+
+function newRequestId() {
+    return (crypto.randomUUID?.() || String(Date.now()) + Math.random().toString(16).slice(2));
+}
+
 // =========================================================
 // SCREENS
 // =========================================================
 function showScreen(name) {
     [captureScreen, processingScreen, reviewScreen].forEach(s => s.classList.remove("active"));
     ({ capture: captureScreen, processing: processingScreen, review: reviewScreen }[name])?.classList.add("active");
+}
+
+// =========================================================
+// SERVER
+// =========================================================
+// Single place every request goes through. Note it does NOT use
+// mode: "no-cors". With no-cors the response is opaque — the app
+// can't tell a completed save from a rejected one, so it reported
+// "Successfully saved!" on server errors and "Failed to save" whenever
+// the connection dropped while the server was still writing to Drive.
+async function postToServer(payload) {
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+    });
+
+    const raw = await res.text();
+    try {
+        return JSON.parse(raw);
+    } catch {
+        console.error("Non-JSON response from Apps Script:", raw);
+        throw new Error("The server did not return valid JSON. See the console for the raw response.");
+    }
 }
 
 // =========================================================
@@ -135,7 +170,7 @@ function showScannedIdPreview(imageData) {
 }
 
 // =========================================================
-// CAPTURE -> QUICK EXTRACT + SAVE (single tap)
+// CAPTURE -> EXTRACT
 // =========================================================
 async function captureImage() {
     if (!cameraStream) return alert("Camera is not active.");
@@ -146,6 +181,7 @@ async function captureImage() {
     captureCanvas.getContext("2d").drawImage(camera, 0, 0, captureCanvas.width, captureCanvas.height);
 
     scannedIdImage = compressImage(captureCanvas, 800, 0.6);
+    clientRequestId = newRequestId(); // new person, new record
     showScannedIdPreview(scannedIdImage);
     scannedIdCapturedBadge.classList.remove("hidden");
     stopCamera();
@@ -157,13 +193,23 @@ async function captureImage() {
     try {
         // Extract only — nothing is saved to Sheets/Drive yet.
         const extracted = await extractIdData(scannedIdImage);
-        applyExtractedData(extracted);
-        setOCRStatus("Extracted", "success");
-        scanStatus.textContent = "ID captured — review before saving";
+        const filledCount = applyExtractedData(extracted);
+
+        // Don't claim success over a blank form. If the OCR call
+        // returned but nothing landed in any field, the operator needs
+        // to know to type the details in.
+        if (filledCount === 0) {
+            setOCRStatus("No data found", "error");
+            scanStatus.textContent = "ID captured — please enter the details manually";
+        } else {
+            setOCRStatus(`Extracted (${filledCount})`, "success");
+            scanStatus.textContent = "ID captured — review before saving";
+        }
     } catch (error) {
         console.error("Extraction error:", error);
         setOCRStatus("Extraction failed", "error");
-        alert("Could not read the ID automatically. Please fill in the details manually, then tap Confirm & Save.");
+        alert("Could not read the ID automatically.\n\n" + (error.message || "") +
+            "\n\nPlease fill in the details manually, then tap Confirm & Save.");
         scanStatus.textContent = "ID captured — review the information";
     }
 
@@ -180,35 +226,33 @@ async function captureImage() {
 // STRUCTOCR EXTRACTION (extract only, no save)
 // =========================================================
 async function extractIdData(image) {
-    const res = await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify({ action: "extract", scannedIdImage: image }),
-    });
-
-    const raw = await res.text();
-    let result;
-    try {
-        result = JSON.parse(raw);
-    } catch {
-        throw new Error("Server did not return valid JSON. See console for the raw response.");
-    }
+    const result = await postToServer({ action: "extract", scannedIdImage: image });
     if (!result.success) throw new Error(result.message || "Extraction failed.");
     return result.data;
 }
 
+// Returns how many fields were actually populated, so the caller can
+// tell "read successfully" apart from "returned an empty result".
 function applyExtractedData(data) {
-    if (!data) return;
-    if (data.name) fields.name.value = data.name;
+    if (!data) return 0;
+    let filled = 0;
+
+    if (data.name) { fields.name.value = data.name; filled++; }
     if (data.birthdate) {
         const formatted = toMMDDYYYY(data.birthdate);
         fields.birthdate.value = formatted;
+        filled++;
         const age = calculateAge(formatted);
         if (age !== null) fields.age.value = age;
     }
-    if (data.sex) fields.sex.value = data.sex === "M" ? "Male" : data.sex === "F" ? "Female" : data.sex;
-    if (data.address) fields.address.value = data.address;
-    if (data.idNumber) fields.idNumber.value = data.idNumber;
+    if (data.sex) {
+        fields.sex.value = data.sex === "M" ? "Male" : data.sex === "F" ? "Female" : data.sex;
+        filled++;
+    }
+    if (data.address) { fields.address.value = data.address; filled++; }
+    if (data.idNumber) { fields.idNumber.value = data.idNumber; filled++; }
+
+    return filled;
 }
 
 function toMMDDYYYY(isoDate) {
@@ -259,6 +303,7 @@ function resetCompleteStep() {
 // =========================================================
 function retakeScan() {
     scannedIdImage = null;
+    clientRequestId = null;
     scannedIdPreview.innerHTML = `<span class="text-xs text-slate-400">No image</span>`;
     scannedIdCapturedBadge.classList.add("hidden");
     resetCompleteStep();
@@ -445,6 +490,14 @@ function setupSignatureCanvas() {
     fsSignatureClearButton?.addEventListener("click", () => fsSignaturePad?.clear());
     fsSignatureDoneButton?.addEventListener("click", closeSignatureFullscreenAndApply);
     fsSignatureCloseButton?.addEventListener("click", closeSignatureFullscreen);
+
+    // Keep the full-screen pad correctly sized if the layout changes
+    // while it's open — rotation, or the mobile browser's address bar
+    // showing/hiding and changing the available height.
+    if (fsSignatureCanvas) {
+        const fsObserver = new ResizeObserver(() => fsSignaturePad?.resize());
+        fsObserver.observe(fsSignatureCanvas);
+    }
 }
 
 function resizeSignatureCanvas() {
@@ -498,7 +551,7 @@ function closeSignatureFullscreenAndApply() {
 }
 
 // =========================================================
-// SAVE (used both for quick auto-save and manual Confirm & Save)
+// SAVE
 // =========================================================
 function validateFields() {
     let firstInvalid = null;
@@ -521,20 +574,21 @@ async function saveRecord() {
         address: fields.address.value.trim(),
         idNumber: fields.idNumber.value.trim(),
         scannedIdImage,
-        signatureImage: getSignatureImage()
+        signatureImage: getSignatureImage(),
 
+        // Same id on every retry of this record, so the server can
+        // recognise a repeat instead of writing a duplicate.
+        clientRequestId,
     };
 
-    await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload),
-    });
+    const result = await postToServer(payload);
+    if (!result.success) {
+        throw new Error(result.message || "The server rejected the record.");
+    }
+    return result;
 }
 
-// Manual save via the Confirm & Save button — used as a fallback if OCR/quick-save failed,
-// or to save again after editing fields post quick-save.
+// Manual save via the Confirm & Save button.
 async function submitToGoogleSheet() {
     const firstInvalid = validateFields();
 
@@ -560,17 +614,42 @@ async function submitToGoogleSheet() {
         );
     }
 
+    if (!clientRequestId) clientRequestId = newRequestId();
+
     confirmButton.disabled = true;
     const originalText = confirmButton.textContent;
     confirmButton.textContent = "Saving...";
 
     try {
-        await saveRecord();
-        alert("Successfully saved!\n\nPerson information was saved to Google Sheets.\nThe scanned ID image was saved to Google Drive.");
+        const result = await saveRecord();
+
+        if (result.duplicate) {
+            alert("This record was already saved earlier.\n\nNo duplicate was created.");
+        } else {
+            alert("Successfully saved!\n\nPerson information was saved to Google Sheets.\nThe scanned ID image was saved to Google Drive.");
+        }
         retakeScan();
+
     } catch (error) {
         console.error("Save error:", error);
-        alert("Failed to save the record.\n\nPlease check your internet connection and try again.");
+
+        // A thrown fetch (as opposed to a server-reported failure)
+        // means the connection dropped — which may well have happened
+        // *after* the server finished writing. Say so plainly, and
+        // make clear that retrying is safe, since the request id
+        // stops a second row being created.
+        const looksLikeNetworkError = error instanceof TypeError ||
+            /network|failed to fetch|load failed/i.test(error.message || "");
+
+        if (looksLikeNetworkError) {
+            alert(
+                "The connection dropped before the server replied.\n\n" +
+                "The record may already have been saved. Tap Confirm & Save again — " +
+                "if it went through the first time, no duplicate will be created."
+            );
+        } else {
+            alert("Failed to save the record.\n\n" + (error.message || "Please try again."));
+        }
     } finally {
         confirmButton.disabled = false;
         confirmButton.textContent = originalText;
