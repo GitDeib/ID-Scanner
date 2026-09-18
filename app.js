@@ -41,16 +41,6 @@ const fsSignatureClearButton = document.getElementById("fsSignatureClearButton")
 const fsSignatureDoneButton = document.getElementById("fsSignatureDoneButton");
 const fsSignatureCloseButton = document.getElementById("fsSignatureCloseButton");
 
-const lockScreen = document.getElementById("lockScreen");
-const lockSubtitle = document.getElementById("lockSubtitle");
-const pinDots = document.getElementById("pinDots");
-const pinKeypad = document.getElementById("pinKeypad");
-const pinError = document.getElementById("pinError");
-const pinSubmitButton = document.getElementById("pinSubmitButton");
-const lockButton = document.getElementById("lockButton");
-const sessionBadge = document.getElementById("sessionBadge");
-const sessionCountdown = document.getElementById("sessionCountdown");
-
 const fields = {
     name: document.getElementById("name"),
     birthdate: document.getElementById("birthdate"),
@@ -65,259 +55,6 @@ const fields = {
 // =========================================================
 let cameraStream = null;
 let scannedIdImage = null;
-
-// --- Session state ---
-// The token is held in memory only: never localStorage/sessionStorage,
-// so closing the tab (or a passer-by opening it later) can't inherit
-// an authenticated session.
-let sessionToken = null;
-let sessionExpiresAt = 0;
-let sessionTimer = null;
-let pinBuffer = "";
-const PIN_MAX_LENGTH = 8;
-
-// =========================================================
-// AUTH / SESSION (client side)
-// =========================================================
-// Everything in this section is UX. It keeps an unattended kiosk from
-// being walked up to and used, and it stops an expired session from
-// silently losing a scan. It is NOT the security boundary — the Apps
-// Script validates the token on every extract/save, so a user who
-// deletes the lock screen in DevTools can still open the camera view
-// but cannot make the server read an ID or write a row.
-
-function isSessionValid() {
-    return !!sessionToken && Date.now() < sessionExpiresAt;
-}
-
-// Single place every server call goes through, so the session token is
-// always attached and an AUTH rejection always lands us back on the
-// lock screen instead of surfacing as a confusing generic error.
-async function postToServer(payload, { requiresAuth = true } = {}) {
-    if (requiresAuth && !isSessionValid()) {
-        lockApp("Your session has expired. Please enter your PIN again.");
-        throw new Error("Session expired.");
-    }
-
-    const body = requiresAuth ? { ...payload, token: sessionToken } : payload;
-
-    const res = await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(body),
-    });
-
-    const raw = await res.text();
-    let result;
-    try {
-        result = JSON.parse(raw);
-    } catch {
-        console.error("Non-JSON response:", raw);
-        throw new Error("Server did not return valid JSON. See console for the raw response.");
-    }
-
-    // The server extends the session on every authorised request, so
-    // keep the local countdown in step with it.
-    if (result.expiresAt) setSessionExpiry(result.expiresAt);
-
-    if (result.code === "AUTH") {
-        lockApp(result.message || "Please enter your PIN again.");
-        throw new Error(result.message || "Session expired.");
-    }
-
-    return result;
-}
-
-function setSessionExpiry(expiresAt) {
-    sessionExpiresAt = expiresAt;
-    updateSessionCountdown();
-}
-
-function startSessionTimer() {
-    clearInterval(sessionTimer);
-    sessionTimer = setInterval(() => {
-        if (!isSessionValid()) {
-            return lockApp("Your session has expired. Please enter your PIN again.");
-        }
-        updateSessionCountdown();
-    }, 1000);
-}
-
-function updateSessionCountdown() {
-    if (!sessionCountdown) return;
-    const msLeft = Math.max(0, sessionExpiresAt - Date.now());
-    const minutes = Math.floor(msLeft / 60000);
-    const seconds = Math.floor((msLeft % 60000) / 1000);
-    sessionCountdown.textContent = `${minutes}:${String(seconds).padStart(2, "0")}`;
-
-    // Warn visually in the last five minutes.
-    const warning = msLeft < 5 * 60 * 1000;
-    sessionBadge.className = warning
-        ? "hidden items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 sm:flex"
-        : "hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex";
-    sessionBadge.classList.remove("hidden");
-    sessionBadge.querySelector("span").className = warning
-        ? "h-2 w-2 rounded-full bg-amber-500"
-        : "h-2 w-2 rounded-full bg-emerald-500";
-}
-
-async function attemptUnlock() {
-    if (pinBuffer.length < 4) {
-        return showPinError("Please enter at least 4 digits.");
-    }
-
-    pinSubmitButton.disabled = true;
-    pinSubmitButton.textContent = "Checking...";
-
-    try {
-        const result = await postToServer(
-            { action: "login", pin: pinBuffer },
-            { requiresAuth: false }
-        );
-
-        if (!result.success) {
-            // Wrong PIN or lockout — never say which digits were wrong.
-            const suffix = typeof result.attemptsLeft === "number"
-                ? ` ${result.attemptsLeft} attempt(s) left.`
-                : "";
-            setPinBuffer("");
-            return showPinError((result.message || "Incorrect PIN.") + suffix);
-        }
-
-        sessionToken = result.token;
-        setSessionExpiry(result.expiresAt);
-        setPinBuffer("");
-        unlockApp();
-
-    } catch (error) {
-        console.error("Login error:", error);
-        showPinError("Could not reach the server. Check your connection.");
-    } finally {
-        pinSubmitButton.disabled = false;
-        pinSubmitButton.textContent = "Unlock";
-    }
-}
-
-function unlockApp() {
-    hidePinError();
-    lockScreen.classList.add("hidden");
-    document.body.classList.remove("app-locked");
-    startSessionTimer();
-    updateSessionCountdown();
-
-    captureButton.disabled = false;
-    confirmButton.disabled = false;
-
-    showScreen("capture");
-    startCamera();
-}
-
-// Locking always tears down everything sensitive: the camera stops,
-// the token is dropped, and any half-finished record (ID photo,
-// extracted personal data, signature) is cleared so the next person
-// at the device can't see or submit it.
-function lockApp(message) {
-    clearInterval(sessionTimer);
-    sessionTimer = null;
-
-    const hadToken = sessionToken;
-    sessionToken = null;
-    sessionExpiresAt = 0;
-
-    stopCamera();
-    closeSignatureFullscreen();
-    clearForm();
-    clearSignature();
-    scannedIdImage = null;
-    scannedIdPreview.innerHTML = `<span class="text-xs text-slate-400">No image</span>`;
-    scannedIdCapturedBadge.classList.add("hidden");
-    resetCompleteStep();
-    scanStatus.textContent = "Ready to capture ID";
-    setOCRStatus("Waiting", "waiting");
-    showScreen("capture");
-
-    captureButton.disabled = true;
-    confirmButton.disabled = true;
-    sessionBadge.classList.add("hidden");
-
-    setPinBuffer("");
-    lockScreen.classList.remove("hidden");
-    document.body.classList.add("app-locked");
-
-    if (message) {
-        lockSubtitle.textContent = message;
-    } else {
-        lockSubtitle.textContent = "Authorised staff only.";
-    }
-
-    // Best-effort: tell the server to destroy the session too, so a
-    // stolen token can't outlive the lock.
-    if (hadToken) {
-        fetch(GOOGLE_SCRIPT_URL, {
-            method: "POST",
-            headers: { "Content-Type": "text/plain;charset=utf-8" },
-            body: JSON.stringify({ action: "logout", token: hadToken }),
-        }).catch(() => { /* nothing useful to do if this fails */ });
-    }
-}
-
-// ---- PIN entry UI ----
-function setPinBuffer(value) {
-    pinBuffer = value;
-    renderPinDots();
-}
-
-function renderPinDots() {
-    // Show one dot per entered digit, with a minimum of four outlines
-    // so the field doesn't look empty before typing.
-    const count = Math.max(4, pinBuffer.length);
-    pinDots.innerHTML = Array.from({ length: count }, (_, i) =>
-        `<span class="pin-dot ${i < pinBuffer.length ? "filled" : ""}"></span>`
-    ).join("");
-}
-
-function showPinError(message) {
-    pinError.textContent = message;
-    pinError.classList.remove("hidden");
-}
-
-function hidePinError() {
-    pinError.classList.add("hidden");
-}
-
-function setupPinKeypad() {
-    pinKeypad.addEventListener("click", event => {
-        const button = event.target.closest("[data-key]");
-        if (!button) return;
-
-        const key = button.dataset.key;
-        hidePinError();
-
-        if (key === "clear") return setPinBuffer("");
-        if (key === "back") return setPinBuffer(pinBuffer.slice(0, -1));
-        if (pinBuffer.length >= PIN_MAX_LENGTH) return;
-        setPinBuffer(pinBuffer + key);
-    });
-
-    pinSubmitButton.addEventListener("click", attemptUnlock);
-    lockButton?.addEventListener("click", () => lockApp("Locked. Enter your PIN to continue."));
-
-    // Physical keyboard support for desktop kiosks.
-    document.addEventListener("keydown", event => {
-        if (lockScreen.classList.contains("hidden")) return;
-        if (/^\d$/.test(event.key)) {
-            hidePinError();
-            if (pinBuffer.length < PIN_MAX_LENGTH) setPinBuffer(pinBuffer + event.key);
-        } else if (event.key === "Backspace") {
-            hidePinError();
-            setPinBuffer(pinBuffer.slice(0, -1));
-        } else if (event.key === "Enter") {
-            attemptUnlock();
-        }
-    });
-
-    renderPinDots();
-}
 
 // =========================================================
 // SCREENS
@@ -401,9 +138,6 @@ function showScannedIdPreview(imageData) {
 // CAPTURE -> QUICK EXTRACT + SAVE (single tap)
 // =========================================================
 async function captureImage() {
-    // Belt and braces: the server rejects an unauthenticated extract
-    // anyway, but there's no point taking the photo first.
-    if (!isSessionValid()) return lockApp("Your session has expired. Please enter your PIN again.");
     if (!cameraStream) return alert("Camera is not active.");
     if (!camera.videoWidth || !camera.videoHeight) return alert("Camera is not ready yet.");
 
@@ -446,7 +180,19 @@ async function captureImage() {
 // STRUCTOCR EXTRACTION (extract only, no save)
 // =========================================================
 async function extractIdData(image) {
-    const result = await postToServer({ action: "extract", scannedIdImage: image });
+    const res = await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: "extract", scannedIdImage: image }),
+    });
+
+    const raw = await res.text();
+    let result;
+    try {
+        result = JSON.parse(raw);
+    } catch {
+        throw new Error("Server did not return valid JSON. See console for the raw response.");
+    }
     if (!result.success) throw new Error(result.message || "Extraction failed.");
     return result.data;
 }
@@ -516,7 +262,7 @@ function retakeScan() {
     scannedIdPreview.innerHTML = `<span class="text-xs text-slate-400">No image</span>`;
     scannedIdCapturedBadge.classList.add("hidden");
     resetCompleteStep();
-    captureButton.disabled = !isSessionValid();
+    captureButton.disabled = false;
     captureButtonText.textContent = "Capture ID";
     scanStatus.textContent = "Ready to capture ID";
     cameraInstruction.textContent = "Position the ID inside the frame.";
@@ -699,17 +445,6 @@ function setupSignatureCanvas() {
     fsSignatureClearButton?.addEventListener("click", () => fsSignaturePad?.clear());
     fsSignatureDoneButton?.addEventListener("click", closeSignatureFullscreenAndApply);
     fsSignatureCloseButton?.addEventListener("click", closeSignatureFullscreen);
-
-    // Keep the full-screen pad correctly sized if the layout changes
-    // while it's open — e.g. rotating the device, or the mobile
-    // browser's address bar showing/hiding and changing the
-    // available height. Observing here (rather than only on open)
-    // means short-screen and orientation changes always keep Clear/
-    // Done reachable and the canvas resolution correct.
-    if (fsSignatureCanvas) {
-        const fsObserver = new ResizeObserver(() => fsSignaturePad?.resize());
-        fsObserver.observe(fsSignatureCanvas);
-    }
 }
 
 function resizeSignatureCanvas() {
@@ -790,20 +525,17 @@ async function saveRecord() {
 
     };
 
-    // Note: this deliberately does NOT use mode: "no-cors". With
-    // no-cors the response is opaque, so the app would report
-    // "Successfully saved!" even when the server rejected the request
-    // (expired session, bad data, quota error) and nothing was written.
-    const result = await postToServer(payload);
-    if (!result.success) throw new Error(result.message || "The server rejected the record.");
-    return result;
+    await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+    });
 }
 
 // Manual save via the Confirm & Save button — used as a fallback if OCR/quick-save failed,
 // or to save again after editing fields post quick-save.
 async function submitToGoogleSheet() {
-    if (!isSessionValid()) return lockApp("Your session has expired. Please enter your PIN again.");
-
     const firstInvalid = validateFields();
 
     if (firstInvalid) {
@@ -838,10 +570,7 @@ async function submitToGoogleSheet() {
         retakeScan();
     } catch (error) {
         console.error("Save error:", error);
-        // lockApp() already explains itself for session problems.
-        if (isSessionValid()) {
-            alert("Failed to save the record.\n\n" + (error.message || "Please check your internet connection and try again."));
-        }
+        alert("Failed to save the record.\n\nPlease check your internet connection and try again.");
     } finally {
         confirmButton.disabled = false;
         confirmButton.textContent = originalText;
@@ -858,24 +587,6 @@ confirmButton.addEventListener("click", submitToGoogleSheet);
 
 document.addEventListener("DOMContentLoaded", () => {
     setupSignatureCanvas();
-    setupPinKeypad();
-
-    // The app always boots locked. The camera is not started and the
-    // capture/save buttons stay disabled until a PIN has been accepted
-    // by the server.
-    captureButton.disabled = true;
-    confirmButton.disabled = true;
-    document.body.classList.add("app-locked");
+    startCamera();
 });
-window.addEventListener("beforeunload", () => {
-    stopCamera();
-    // Drop the session server-side when the tab closes, so a token
-    // can't be reused from a captured network log.
-    if (sessionToken && navigator.sendBeacon) {
-        navigator.sendBeacon(
-            GOOGLE_SCRIPT_URL,
-            new Blob([JSON.stringify({ action: "logout", token: sessionToken })],
-                { type: "text/plain;charset=utf-8" })
-        );
-    }
-});
+window.addEventListener("beforeunload", stopCamera);
