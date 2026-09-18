@@ -30,6 +30,17 @@ const processingScreen = document.getElementById("processingScreen");
 const reviewScreen = document.getElementById("reviewScreen");
 const processingText = document.getElementById("processingText");
 
+const signatureCanvas = document.getElementById("signatureCanvas");
+const clearSignatureButton = document.getElementById("clearSignatureButton");
+const expandSignatureButton = document.getElementById("expandSignatureButton");
+const signatureStatus = document.getElementById("signatureStatus");
+
+const signatureFullscreenOverlay = document.getElementById("signatureFullscreenOverlay");
+const fsSignatureCanvas = document.getElementById("fsSignatureCanvas");
+const fsSignatureClearButton = document.getElementById("fsSignatureClearButton");
+const fsSignatureDoneButton = document.getElementById("fsSignatureDoneButton");
+const fsSignatureCloseButton = document.getElementById("fsSignatureCloseButton");
+
 const fields = {
     name: document.getElementById("name"),
     birthdate: document.getElementById("birthdate"),
@@ -158,6 +169,11 @@ async function captureImage() {
 
     updateCompleteStep();
     showScreen("review");
+
+    // The signature box lives on this screen, which has been
+    // display:none until now — size its drawing surface now that
+    // it actually has a real width/height to measure.
+    resizeSignatureCanvas();
 }
 
 // =========================================================
@@ -251,12 +267,234 @@ function retakeScan() {
     scanStatus.textContent = "Ready to capture ID";
     cameraInstruction.textContent = "Position the ID inside the frame.";
     setOCRStatus("Waiting", "waiting");
+
+    // Don't carry one person's signature into the next scan.
+    clearSignature();
+
     showScreen("capture");
     startCamera();
 }
 
 function clearForm() {
     Object.values(fields).forEach(f => (f.value = ""));
+}
+
+// =========================================================
+// E-SIGNATURE
+// =========================================================
+// Two drawing surfaces share the same pad logic:
+//  - `signatureCanvas`   the small inline box on the review screen
+//  - `fsSignatureCanvas` a big full-screen pad, opened on demand,
+//                        meant to be much easier to sign on for
+//                        senior citizens (bigger area, thicker ink).
+
+const SIGNATURE_LINE_WIDTH = 4;    // thicker ink than the original 2px
+const SIGNATURE_LINE_WIDTH_FS = 6; // thicker still on the full-screen pad
+const SIGNATURE_COLOR = "#0f172a";
+
+function makeSignaturePad(canvas, lineWidth) {
+    const pad = {
+        canvas,
+        ctx: null,
+        drawing: false,
+        hasData: false,
+        lineWidth,
+        onStart: null,
+        onClear: null,
+    };
+
+    function style() {
+        pad.ctx.lineWidth = pad.lineWidth;
+        pad.ctx.lineCap = "round";
+        pad.ctx.lineJoin = "round";
+        pad.ctx.strokeStyle = SIGNATURE_COLOR;
+    }
+
+    function getPos(event) {
+        const rect = canvas.getBoundingClientRect();
+        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    }
+
+    function resize() {
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return false; // still hidden
+
+        // Resizing a canvas wipes its bitmap and resets its drawing
+        // state, so grab a snapshot first and restore it after — this
+        // keeps a signature that's already been drawn if the box
+        // resizes again later (e.g. on rotation).
+        const snapshot = pad.hasData ? canvas.toDataURL("image/png") : null;
+
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+
+        pad.ctx = canvas.getContext("2d");
+        pad.ctx.scale(dpr, dpr);
+        style();
+
+        if (snapshot) {
+            const img = new Image();
+            img.onload = () => pad.ctx.drawImage(img, 0, 0, rect.width, rect.height);
+            img.src = snapshot;
+        }
+        return true;
+    }
+
+    function start(event) {
+        if (!pad.ctx) return;
+        event.preventDefault();
+        pad.drawing = true;
+        pad.hasData = true;
+        canvas.setPointerCapture?.(event.pointerId);
+        const pos = getPos(event);
+        pad.ctx.beginPath();
+        pad.ctx.moveTo(pos.x, pos.y);
+        pad.onStart?.();
+    }
+
+    function move(event) {
+        if (!pad.drawing || !pad.ctx) return;
+        event.preventDefault();
+        const pos = getPos(event);
+        pad.ctx.lineTo(pos.x, pos.y);
+        pad.ctx.stroke();
+    }
+
+    function end(event) {
+        if (!pad.drawing) return;
+        pad.drawing = false;
+        try {
+            canvas.releasePointerCapture?.(event.pointerId);
+        } catch (error) {
+            // Ignore pointer capture errors
+        }
+    }
+
+    function clear() {
+        if (pad.ctx) pad.ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pad.hasData = false;
+        pad.onClear?.();
+    }
+
+    // Draws an existing signature image into this pad, scaled to fit
+    // and centered — used to carry a signature between the small box
+    // and the full-screen pad in either direction.
+    function drawImageFrom(dataUrl) {
+        if (!dataUrl || !pad.ctx) return;
+        const rect = canvas.getBoundingClientRect();
+        const img = new Image();
+        img.onload = () => {
+            pad.ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const scale = Math.min(rect.width / img.width, rect.height / img.height);
+            const w = img.width * scale;
+            const h = img.height * scale;
+            const x = (rect.width - w) / 2;
+            const y = (rect.height - h) / 2;
+            pad.ctx.drawImage(img, x, y, w, h);
+            pad.hasData = true;
+        };
+        img.src = dataUrl;
+    }
+
+    canvas.addEventListener("pointerdown", start);
+    canvas.addEventListener("pointermove", move);
+    canvas.addEventListener("pointerup", end);
+    canvas.addEventListener("pointercancel", end);
+    canvas.addEventListener("pointerleave", end);
+
+    pad.resize = resize;
+    pad.clear = clear;
+    pad.drawImageFrom = drawImageFrom;
+    pad.getImage = () => (pad.hasData ? canvas.toDataURL("image/png") : "");
+
+    return pad;
+}
+
+const signaturePad = makeSignaturePad(signatureCanvas, SIGNATURE_LINE_WIDTH);
+signaturePad.onStart = () => {
+    signatureStatus.textContent = "Signature captured.";
+    signatureStatus.className = "mt-1.5 text-[10px] text-emerald-600";
+};
+signaturePad.onClear = () => {
+    signatureStatus.textContent = "Signature required before saving.";
+    signatureStatus.className = "mt-1.5 text-[10px] text-slate-400";
+};
+
+// Built lazily the first time the full-screen pad is opened, since
+// its canvas is display:none (inside the hidden overlay) at page load
+// and can't be measured until then.
+let fsSignaturePad = null;
+
+function setupSignatureCanvas() {
+    if (!signatureCanvas) return;
+
+    // The signature box lives inside the review screen, which is
+    // display:none at page load, so its bounding box is 0x0 at this
+    // point — sizing has to happen again once the box is actually
+    // visible. A ResizeObserver catches that transition (and any
+    // later layout change, e.g. orientation); captureImage() also
+    // calls resizeSignatureCanvas() directly right after showing
+    // the review screen, as a fallback in case the observer doesn't
+    // fire on the display:none -> block transition in every browser.
+    const observer = new ResizeObserver(() => signaturePad.resize());
+    observer.observe(signatureCanvas);
+
+    clearSignatureButton?.addEventListener("click", () => signaturePad.clear());
+    expandSignatureButton?.addEventListener("click", openSignatureFullscreen);
+    fsSignatureClearButton?.addEventListener("click", () => fsSignaturePad?.clear());
+    fsSignatureDoneButton?.addEventListener("click", closeSignatureFullscreenAndApply);
+    fsSignatureCloseButton?.addEventListener("click", closeSignatureFullscreen);
+}
+
+function resizeSignatureCanvas() {
+    signaturePad.resize();
+}
+
+function clearSignature() {
+    signaturePad.clear();
+}
+
+function getSignatureImage() {
+    return signaturePad.getImage();
+}
+
+// ---- Full-screen signing (bigger area + thicker ink for easier signing) ----
+function openSignatureFullscreen() {
+    if (!signatureFullscreenOverlay) return;
+
+    signatureFullscreenOverlay.classList.remove("hidden");
+    signatureFullscreenOverlay.classList.add("flex");
+    document.body.style.overflow = "hidden"; // lock background scroll while signing
+
+    if (!fsSignaturePad) {
+        fsSignaturePad = makeSignaturePad(fsSignatureCanvas, SIGNATURE_LINE_WIDTH_FS);
+    }
+
+    // Wait a frame so the overlay has actually become visible/sized
+    // before we measure it and size the canvas.
+    requestAnimationFrame(() => {
+        fsSignaturePad.resize();
+        if (signaturePad.hasData) {
+            fsSignaturePad.drawImageFrom(signaturePad.getImage());
+        }
+    });
+}
+
+function closeSignatureFullscreen() {
+    if (!signatureFullscreenOverlay) return;
+    signatureFullscreenOverlay.classList.add("hidden");
+    signatureFullscreenOverlay.classList.remove("flex");
+    document.body.style.overflow = "";
+}
+
+function closeSignatureFullscreenAndApply() {
+    if (fsSignaturePad?.hasData) {
+        signaturePad.drawImageFrom(fsSignaturePad.getImage());
+        signatureStatus.textContent = "Signature captured.";
+        signatureStatus.className = "mt-1.5 text-[10px] text-emerald-600";
+    }
+    closeSignatureFullscreen();
 }
 
 // =========================================================
@@ -283,6 +521,8 @@ async function saveRecord() {
         address: fields.address.value.trim(),
         idNumber: fields.idNumber.value.trim(),
         scannedIdImage,
+        signatureImage: getSignatureImage()
+
     };
 
     await fetch(GOOGLE_SCRIPT_URL, {
@@ -297,8 +537,28 @@ async function saveRecord() {
 // or to save again after editing fields post quick-save.
 async function submitToGoogleSheet() {
     const firstInvalid = validateFields();
-    if (firstInvalid) return firstInvalid.focus();
-    if (!scannedIdImage) return alert("Scanned ID image is missing. Please capture the ID.");
+
+    if (firstInvalid) {
+        return firstInvalid.focus();
+    }
+
+    if (!scannedIdImage) {
+        return alert(
+            "Scanned ID image is missing. Please capture the ID."
+        );
+    }
+
+    if (!signaturePad.hasData) {
+        signatureStatus.textContent =
+            "Please provide a signature before saving.";
+
+        signatureStatus.className =
+            "mt-1.5 text-[10px] font-semibold text-red-600";
+
+        return alert(
+            "Please provide an electronic signature before saving."
+        );
+    }
 
     confirmButton.disabled = true;
     const originalText = confirmButton.textContent;
@@ -325,5 +585,8 @@ retakeButton.addEventListener("click", retakeScan);
 clearButton.addEventListener("click", clearForm);
 confirmButton.addEventListener("click", submitToGoogleSheet);
 
-document.addEventListener("DOMContentLoaded", startCamera);
+document.addEventListener("DOMContentLoaded", () => {
+    setupSignatureCanvas();
+    startCamera();
+});
 window.addEventListener("beforeunload", stopCamera);
