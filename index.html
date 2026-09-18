@@ -36,6 +36,49 @@
             }
         }
 
+        /* While locked, nothing behind the PIN screen can be
+           interacted with or scrolled. */
+        body.app-locked {
+            overflow: hidden;
+        }
+
+        #lockScreen {
+            height: 100dvh;
+        }
+
+        .pin-key {
+            border-radius: 0.75rem;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            padding: 1rem 0;
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #0f172a;
+            transition: background .15s;
+        }
+
+        .pin-key:active {
+            background: #e2e8f0;
+        }
+
+        .pin-key-alt {
+            font-size: .8rem;
+            color: #475569;
+            background: #f8fafc;
+        }
+
+        .pin-dot {
+            height: .875rem;
+            width: .875rem;
+            border-radius: 9999px;
+            border: 2px solid #cbd5e1;
+        }
+
+        .pin-dot.filled {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
         /* Full-screen signature pad: keep header/footer visible and
            compact on short or landscape screens so the Clear/Done
            buttons never get pushed off-screen. */
@@ -92,10 +135,22 @@
                 </div>
             </div>
 
-            <div
-                class="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
-                <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                <span class="text-xs font-medium text-emerald-700">Scanner Ready</span>
+            <div class="flex items-center gap-2">
+                <div id="sessionBadge"
+                    class="hidden items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 sm:flex">
+                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    <span class="text-xs font-medium text-emerald-700">Session
+                        <span id="sessionCountdown">30:00</span></span>
+                </div>
+                <button id="lockButton" type="button"
+                    class="flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 0h10.5a2.25 2.25 0 012.25 2.25v6a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 18.75v-6a2.25 2.25 0 012.25-2.25z" />
+                    </svg>
+                    Lock
+                </button>
             </div>
         </div>
     </header>
@@ -439,6 +494,60 @@
                     Done
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- =====================================================
+         PIN LOCK SCREEN
+         This overlay is only the convenience lock for the kiosk.
+         The real enforcement is server-side: the Apps Script
+         refuses every extract/save request that doesn't carry a
+         session token it issued after a correct PIN, so removing
+         this overlay in DevTools gains an attacker nothing.
+         ===================================================== -->
+    <div id="lockScreen" class="fixed inset-0 z-[60] flex flex-col items-center justify-center bg-slate-900 px-4">
+        <div class="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <div class="text-center">
+                <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-white">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor" stroke-width="1.8">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                            d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 0h10.5a2.25 2.25 0 012.25 2.25v6a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 18.75v-6a2.25 2.25 0 012.25-2.25z" />
+                    </svg>
+                </div>
+                <h2 class="text-xl font-bold tracking-tight text-slate-900">Enter PIN</h2>
+                <p id="lockSubtitle" class="mt-1 text-sm text-slate-500">Authorised staff only.</p>
+            </div>
+
+            <!-- Dots show PIN length without ever revealing the digits -->
+            <div id="pinDots" class="my-6 flex justify-center gap-3"></div>
+
+            <p id="pinError"
+                class="mb-4 hidden rounded-lg bg-red-50 px-3 py-2 text-center text-xs font-semibold text-red-600"></p>
+
+            <div id="pinKeypad" class="grid grid-cols-3 gap-2.5">
+                <button type="button" data-key="1" class="pin-key">1</button>
+                <button type="button" data-key="2" class="pin-key">2</button>
+                <button type="button" data-key="3" class="pin-key">3</button>
+                <button type="button" data-key="4" class="pin-key">4</button>
+                <button type="button" data-key="5" class="pin-key">5</button>
+                <button type="button" data-key="6" class="pin-key">6</button>
+                <button type="button" data-key="7" class="pin-key">7</button>
+                <button type="button" data-key="8" class="pin-key">8</button>
+                <button type="button" data-key="9" class="pin-key">9</button>
+                <button type="button" data-key="clear" class="pin-key pin-key-alt">Clear</button>
+                <button type="button" data-key="0" class="pin-key">0</button>
+                <button type="button" data-key="back" class="pin-key pin-key-alt">&#9003;</button>
+            </div>
+
+            <button id="pinSubmitButton" type="button"
+                class="mt-4 w-full rounded-xl bg-blue-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-60">
+                Unlock
+            </button>
+
+            <p class="mt-4 text-center text-[11px] leading-relaxed text-slate-400">
+                Sessions end automatically after 30 minutes of inactivity.
+            </p>
         </div>
     </div>
 
