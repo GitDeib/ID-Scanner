@@ -35,13 +35,13 @@ const processingText = document.getElementById("processingText");
 // looks new ("New"). Purely informational: it never blocks Confirm.
 const duplicateWarning = document.getElementById("duplicateWarning");
 
+// Only Name, District, and Birthdate are collected — the sheet has no
+// columns for sex, address, or ID number, so there's no use asking
+// for or displaying them.
 const fields = {
     name: document.getElementById("name"),
+    district: document.getElementById("district"),
     birthdate: document.getElementById("birthdate"),
-    age: document.getElementById("age"),
-    sex: document.getElementById("sex"),
-    address: document.getElementById("address"),
-    idNumber: document.getElementById("idNumber"),
 };
 
 // =========================================================
@@ -50,10 +50,10 @@ const fields = {
 let cameraStream = null;
 let scannedIdImage = null;
 
-// Identifies the record currently being worked on. Every save attempt
-// for the same record sends the same id, so if a save completes on the
-// server but the response is lost on the way back, tapping Save again
-// is recognised as a retry instead of writing a second "New" row.
+// Identifies the scan currently being worked on. Every confirm attempt
+// for the same scan sends the same id, so if a save completes on the
+// server but the response is lost on the way back, tapping Confirm
+// again is recognised as a retry instead of adding a second "New" row.
 // A new id is minted only when a new scan starts.
 let clientRequestId = null;
 
@@ -148,9 +148,9 @@ function showCameraError(message) {
 // =========================================================
 // IMAGE HELPERS
 // =========================================================
-// The captured frame is still compressed and kept in memory so it can
-// be sent once to the OCR step and shown as an on-screen preview for
-// the operator to check — it is never uploaded anywhere for storage.
+// The captured frame is compressed and kept in memory only long
+// enough to run OCR and show the operator a preview — it is never
+// uploaded anywhere for storage.
 function compressImage(canvas, maxWidth = 800, quality = 0.6) {
     const scale = Math.min(1, maxWidth / canvas.width);
     const width = Math.round(canvas.width * scale);
@@ -170,10 +170,10 @@ function showScannedIdPreview(imageData) {
 // LOCATOR STATUS (UI)
 // =========================================================
 // `match` mirrors what the backend's findSimilarRecord() returns:
-// { recordId, date, name, type: "exact_id" | "similar_name" } or null.
-// Always shown once a scan has been read, so the operator knows right
-// away whether this is a known person ("Present") or a new one ("New")
-// — before they even tap Confirm.
+// { no, name, birthday, type: "birthday_and_name" | "similar_name" }
+// or null. Always shown once a scan has been read, so the operator
+// knows right away whether this is a known person ("Present") or a
+// new one ("New") — before they even tap Confirm.
 function showDuplicateWarning(match) {
     if (!duplicateWarning) return;
 
@@ -184,16 +184,14 @@ function showDuplicateWarning(match) {
     );
 
     if (match) {
-        const when = match.date ? new Date(match.date).toLocaleDateString() : "an earlier scan";
-        const reason = match.type === "exact_id" ? "same ID number" : "a very similar name";
         duplicateWarning.classList.add("border-amber-200", "bg-amber-50", "text-amber-800");
         duplicateWarning.textContent =
-            `Present — this person already appears on record (${reason}): ${match.recordId}, scanned ${when}. ` +
-            `Confirming will not create a new row.`;
+            `Present — already on the list as No. ${match.no} (${match.name}). ` +
+            `Confirming will mark them Present, not add a new row.`;
     } else {
         duplicateWarning.classList.add("border-blue-200", "bg-blue-50", "text-blue-800");
         duplicateWarning.textContent =
-            "New — no matching record was found. Confirming will add this as a new entry.";
+            "New — no matching entry was found. Confirming will add this as a new row.";
     }
 }
 
@@ -215,7 +213,7 @@ async function captureImage() {
     captureCanvas.getContext("2d").drawImage(camera, 0, 0, captureCanvas.width, captureCanvas.height);
 
     scannedIdImage = compressImage(captureCanvas, 800, 0.6);
-    clientRequestId = newRequestId(); // new person, new record
+    clientRequestId = newRequestId(); // new scan, new retry-safety id
     showScannedIdPreview(scannedIdImage);
     scannedIdCapturedBadge.classList.remove("hidden");
     stopCamera();
@@ -270,20 +268,20 @@ function applyExtractedData(data) {
     if (!data) return 0;
     let filled = 0;
 
-    if (data.name) { fields.name.value = data.name; filled++; }
+    if (data.name) {
+        // The sheet lists people as "Family Name, First Name MI" but
+        // StructOCR reads a national ID as "Given Names Surname" — flip
+        // it here so the field already matches the sheet's convention
+        // and the operator doesn't have to retype it every scan.
+        fields.name.value = (data.givenName && data.surname)
+            ? `${data.surname}, ${data.givenName}`
+            : data.name;
+        filled++;
+    }
     if (data.birthdate) {
-        const formatted = toMMDDYYYY(data.birthdate);
-        fields.birthdate.value = formatted;
-        filled++;
-        const age = calculateAge(formatted);
-        if (age !== null) fields.age.value = age;
-    }
-    if (data.sex) {
-        fields.sex.value = data.sex === "M" ? "Male" : data.sex === "F" ? "Female" : data.sex;
+        fields.birthdate.value = toMMDDYYYY(data.birthdate);
         filled++;
     }
-    if (data.address) { fields.address.value = data.address; filled++; }
-    if (data.idNumber) { fields.idNumber.value = data.idNumber; filled++; }
 
     return filled;
 }
@@ -291,20 +289,6 @@ function applyExtractedData(data) {
 function toMMDDYYYY(isoDate) {
     const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
     return m ? `${m[2]}/${m[3]}/${m[1]}` : isoDate;
-}
-
-function calculateAge(mmddyyyy) {
-    const [mm, dd, yyyy] = mmddyyyy.split("/").map(Number);
-    if (!mm || !dd || !yyyy) return null;
-    const birth = new Date(yyyy, mm - 1, dd);
-    if (birth.getFullYear() !== yyyy || birth.getMonth() !== mm - 1 || birth.getDate() !== dd) return null;
-
-    const today = new Date();
-    let age = today.getFullYear() - birth.getFullYear();
-    const hadBirthday = today.getMonth() > birth.getMonth() ||
-        (today.getMonth() === birth.getMonth() && today.getDate() >= birth.getDate());
-    if (!hadBirthday) age--;
-    return age >= 0 ? age : null;
 }
 
 // =========================================================
@@ -370,37 +354,14 @@ function validateFields() {
     return firstInvalid;
 }
 
-function findRecordRowById(sheet, recordId) {
-    const lastRow = sheet.getLastRow();
-
-    if (lastRow < 2) {
-        return null;
-    }
-
-    const recordIds = sheet
-        .getRange(2, 1, lastRow - 1, 1)
-        .getValues();
-
-    for (let i = 0; i < recordIds.length; i++) {
-        if (String(recordIds[i][0]) === String(recordId)) {
-            return i + 2;
-        }
-    }
-
-    return null;
-}
-
 async function saveRecord() {
     const payload = {
         name: fields.name.value.trim(),
+        district: fields.district.value.trim(),
         birthdate: fields.birthdate.value.trim(),
-        age: fields.age.value.trim(),
-        sex: fields.sex.value.trim(),
-        address: fields.address.value.trim(),
-        idNumber: fields.idNumber.value.trim(),
 
-        // Same id on every retry of this record, so the server can
-        // recognise a repeat instead of writing a duplicate "New" row.
+        // Same id on every retry of this scan, so the server can
+        // recognise a repeat instead of adding a second "New" row.
         clientRequestId,
     };
 
@@ -435,11 +396,14 @@ async function submitToGoogleSheet() {
         const result = await saveRecord();
 
         if (result.duplicate) {
-            alert("This scan was already processed earlier.\n\nNo duplicate was created.");
+            alert("This scan was already processed earlier.\n\nNo changes were made.");
         } else if (result.matchStatus === "Present") {
-            alert("Present — this person is already on record.\n\nNo new row was added.");
+            alert(
+                "Present — this person is already on the list (No. " + result.no + ").\n\n" +
+                (result.birthdayFilled ? "Their birthday was filled in since it was blank." : "No changes were needed.")
+            );
         } else {
-            alert("New — this person was not found on record.\n\nA new row was added to the sheet.");
+            alert("New — added to the list as No. " + result.no + ".");
         }
         retakeScan();
 
@@ -450,7 +414,7 @@ async function submitToGoogleSheet() {
         // means the connection dropped — which may well have happened
         // *after* the server finished writing. Say so plainly, and
         // make clear that retrying is safe, since the request id
-        // stops a second row being created.
+        // stops a second row being added.
         const looksLikeNetworkError = error instanceof TypeError ||
             /network|failed to fetch|load failed/i.test(error.message || "");
 
