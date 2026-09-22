@@ -2,7 +2,7 @@
 // CONFIG
 // =========================================================
 const GOOGLE_SCRIPT_URL =
-    "https://script.google.com/a/macros/umindanao.edu.ph/s/AKfycbzBX6kB3ewjsjKrmPqcFcyH7Hh_Kd0yowxicqOA47eq-6yAnOQIOUnt6NceVv5ozswIFg/exec";
+    "https://script.google.com/macros/s/AKfycbw4Tpot9Czz5WLj17JQeFgArnHk0CsmKTZtao8RX4I-OXjP6eP7SXND6SWSV2Cg2Gyr/exec";
 
 // =========================================================
 // DOM
@@ -30,16 +30,10 @@ const processingScreen = document.getElementById("processingScreen");
 const reviewScreen = document.getElementById("reviewScreen");
 const processingText = document.getElementById("processingText");
 
-const signatureCanvas = document.getElementById("signatureCanvas");
-const clearSignatureButton = document.getElementById("clearSignatureButton");
-const expandSignatureButton = document.getElementById("expandSignatureButton");
-const signatureStatus = document.getElementById("signatureStatus");
-
-const signatureFullscreenOverlay = document.getElementById("signatureFullscreenOverlay");
-const fsSignatureCanvas = document.getElementById("fsSignatureCanvas");
-const fsSignatureClearButton = document.getElementById("fsSignatureClearButton");
-const fsSignatureDoneButton = document.getElementById("fsSignatureDoneButton");
-const fsSignatureCloseButton = document.getElementById("fsSignatureCloseButton");
+// Locator banner — always shown once a scan has been read, telling the
+// operator whether this person is already on record ("Present") or
+// looks new ("New"). Purely informational: it never blocks Confirm.
+const duplicateWarning = document.getElementById("duplicateWarning");
 
 const fields = {
     name: document.getElementById("name"),
@@ -59,8 +53,8 @@ let scannedIdImage = null;
 // Identifies the record currently being worked on. Every save attempt
 // for the same record sends the same id, so if a save completes on the
 // server but the response is lost on the way back, tapping Save again
-// is recognised as a retry instead of creating a second row and two
-// more Drive files. A new id is minted only when a new scan starts.
+// is recognised as a retry instead of writing a second "New" row.
+// A new id is minted only when a new scan starts.
 let clientRequestId = null;
 
 function newRequestId() {
@@ -82,7 +76,7 @@ function showScreen(name) {
 // mode: "no-cors". With no-cors the response is opaque — the app
 // can't tell a completed save from a rejected one, so it reported
 // "Successfully saved!" on server errors and "Failed to save" whenever
-// the connection dropped while the server was still writing to Drive.
+// the connection dropped while the server was still writing.
 async function postToServer(payload) {
     const res = await fetch(GOOGLE_SCRIPT_URL, {
         method: "POST",
@@ -154,6 +148,9 @@ function showCameraError(message) {
 // =========================================================
 // IMAGE HELPERS
 // =========================================================
+// The captured frame is still compressed and kept in memory so it can
+// be sent once to the OCR step and shown as an on-screen preview for
+// the operator to check — it is never uploaded anywhere for storage.
 function compressImage(canvas, maxWidth = 800, quality = 0.6) {
     const scale = Math.min(1, maxWidth / canvas.width);
     const width = Math.round(canvas.width * scale);
@@ -167,6 +164,43 @@ function compressImage(canvas, maxWidth = 800, quality = 0.6) {
 
 function showScannedIdPreview(imageData) {
     scannedIdPreview.innerHTML = `<img src="${imageData}" alt="Scanned ID" class="h-full w-full object-cover">`;
+}
+
+// =========================================================
+// LOCATOR STATUS (UI)
+// =========================================================
+// `match` mirrors what the backend's findSimilarRecord() returns:
+// { recordId, date, name, type: "exact_id" | "similar_name" } or null.
+// Always shown once a scan has been read, so the operator knows right
+// away whether this is a known person ("Present") or a new one ("New")
+// — before they even tap Confirm.
+function showDuplicateWarning(match) {
+    if (!duplicateWarning) return;
+
+    duplicateWarning.classList.remove("hidden");
+    duplicateWarning.classList.remove(
+        "border-amber-200", "bg-amber-50", "text-amber-800",
+        "border-blue-200", "bg-blue-50", "text-blue-800"
+    );
+
+    if (match) {
+        const when = match.date ? new Date(match.date).toLocaleDateString() : "an earlier scan";
+        const reason = match.type === "exact_id" ? "same ID number" : "a very similar name";
+        duplicateWarning.classList.add("border-amber-200", "bg-amber-50", "text-amber-800");
+        duplicateWarning.textContent =
+            `Present — this person already appears on record (${reason}): ${match.recordId}, scanned ${when}. ` +
+            `Confirming will not create a new row.`;
+    } else {
+        duplicateWarning.classList.add("border-blue-200", "bg-blue-50", "text-blue-800");
+        duplicateWarning.textContent =
+            "New — no matching record was found. Confirming will add this as a new entry.";
+    }
+}
+
+function hideDuplicateWarning() {
+    if (!duplicateWarning) return;
+    duplicateWarning.classList.add("hidden");
+    duplicateWarning.textContent = "";
 }
 
 // =========================================================
@@ -189,11 +223,13 @@ async function captureImage() {
     processingText.textContent = "Reading the ID...";
     showScreen("processing");
     setOCRStatus("Extracting...", "loading");
+    hideDuplicateWarning();
 
     try {
-        // Extract only — nothing is saved to Sheets/Drive yet.
-        const extracted = await extractIdData(scannedIdImage);
+        // Extract + locate only — nothing is written to the sheet yet.
+        const { data: extracted, match } = await extractIdData(scannedIdImage);
         const filledCount = applyExtractedData(extracted);
+        showDuplicateWarning(match);
 
         // Don't claim success over a blank form. If the OCR call
         // returned but nothing landed in any field, the operator needs
@@ -203,32 +239,29 @@ async function captureImage() {
             scanStatus.textContent = "ID captured — please enter the details manually";
         } else {
             setOCRStatus(`Extracted (${filledCount})`, "success");
-            scanStatus.textContent = "ID captured — review before saving";
+            scanStatus.textContent = "ID captured — review before confirming";
         }
     } catch (error) {
         console.error("Extraction error:", error);
         setOCRStatus("Extraction failed", "error");
         alert("Could not read the ID automatically.\n\n" + (error.message || "") +
-            "\n\nPlease fill in the details manually, then tap Confirm & Save.");
+            "\n\nPlease fill in the details manually, then tap Confirm.");
         scanStatus.textContent = "ID captured — review the information";
     }
 
     updateCompleteStep();
     showScreen("review");
-
-    // The signature box lives on this screen, which has been
-    // display:none until now — size its drawing surface now that
-    // it actually has a real width/height to measure.
-    resizeSignatureCanvas();
 }
 
 // =========================================================
-// STRUCTOCR EXTRACTION (extract only, no save)
+// STRUCTOCR EXTRACTION (extract + locate only, no save)
 // =========================================================
 async function extractIdData(image) {
     const result = await postToServer({ action: "extract", scannedIdImage: image });
     if (!result.success) throw new Error(result.message || "Extraction failed.");
-    return result.data;
+    // `match` is the locator lookup the backend runs right after OCR —
+    // null when nothing in the sheet looks like the same person.
+    return { data: result.data, match: result.match || null };
 }
 
 // Returns how many fields were actually populated, so the caller can
@@ -312,9 +345,7 @@ function retakeScan() {
     scanStatus.textContent = "Ready to capture ID";
     cameraInstruction.textContent = "Position the ID inside the frame.";
     setOCRStatus("Waiting", "waiting");
-
-    // Don't carry one person's signature into the next scan.
-    clearSignature();
+    hideDuplicateWarning();
 
     showScreen("capture");
     startCamera();
@@ -322,232 +353,6 @@ function retakeScan() {
 
 function clearForm() {
     Object.values(fields).forEach(f => (f.value = ""));
-}
-
-// =========================================================
-// E-SIGNATURE
-// =========================================================
-// Two drawing surfaces share the same pad logic:
-//  - `signatureCanvas`   the small inline box on the review screen
-//  - `fsSignatureCanvas` a big full-screen pad, opened on demand,
-//                        meant to be much easier to sign on for
-//                        senior citizens (bigger area, thicker ink).
-
-const SIGNATURE_LINE_WIDTH = 4;    // thicker ink than the original 2px
-const SIGNATURE_LINE_WIDTH_FS = 6; // thicker still on the full-screen pad
-const SIGNATURE_COLOR = "#0f172a";
-
-function makeSignaturePad(canvas, lineWidth) {
-    const pad = {
-        canvas,
-        ctx: null,
-        drawing: false,
-        hasData: false,
-        lineWidth,
-        onStart: null,
-        onClear: null,
-    };
-
-    function style() {
-        pad.ctx.lineWidth = pad.lineWidth;
-        pad.ctx.lineCap = "round";
-        pad.ctx.lineJoin = "round";
-        pad.ctx.strokeStyle = SIGNATURE_COLOR;
-    }
-
-    function getPos(event) {
-        const rect = canvas.getBoundingClientRect();
-        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-    }
-
-    function resize() {
-        const rect = canvas.getBoundingClientRect();
-        if (rect.width === 0 || rect.height === 0) return false; // still hidden
-
-        // Resizing a canvas wipes its bitmap and resets its drawing
-        // state, so grab a snapshot first and restore it after — this
-        // keeps a signature that's already been drawn if the box
-        // resizes again later (e.g. on rotation).
-        const snapshot = pad.hasData ? canvas.toDataURL("image/png") : null;
-
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = rect.width * dpr;
-        canvas.height = rect.height * dpr;
-
-        pad.ctx = canvas.getContext("2d");
-        pad.ctx.scale(dpr, dpr);
-        style();
-
-        if (snapshot) {
-            const img = new Image();
-            img.onload = () => pad.ctx.drawImage(img, 0, 0, rect.width, rect.height);
-            img.src = snapshot;
-        }
-        return true;
-    }
-
-    function start(event) {
-        if (!pad.ctx) return;
-        event.preventDefault();
-        pad.drawing = true;
-        pad.hasData = true;
-        canvas.setPointerCapture?.(event.pointerId);
-        const pos = getPos(event);
-        pad.ctx.beginPath();
-        pad.ctx.moveTo(pos.x, pos.y);
-        pad.onStart?.();
-    }
-
-    function move(event) {
-        if (!pad.drawing || !pad.ctx) return;
-        event.preventDefault();
-        const pos = getPos(event);
-        pad.ctx.lineTo(pos.x, pos.y);
-        pad.ctx.stroke();
-    }
-
-    function end(event) {
-        if (!pad.drawing) return;
-        pad.drawing = false;
-        try {
-            canvas.releasePointerCapture?.(event.pointerId);
-        } catch (error) {
-            // Ignore pointer capture errors
-        }
-    }
-
-    function clear() {
-        if (pad.ctx) pad.ctx.clearRect(0, 0, canvas.width, canvas.height);
-        pad.hasData = false;
-        pad.onClear?.();
-    }
-
-    // Draws an existing signature image into this pad, scaled to fit
-    // and centered — used to carry a signature between the small box
-    // and the full-screen pad in either direction.
-    function drawImageFrom(dataUrl) {
-        if (!dataUrl || !pad.ctx) return;
-        const rect = canvas.getBoundingClientRect();
-        const img = new Image();
-        img.onload = () => {
-            pad.ctx.clearRect(0, 0, canvas.width, canvas.height);
-            const scale = Math.min(rect.width / img.width, rect.height / img.height);
-            const w = img.width * scale;
-            const h = img.height * scale;
-            const x = (rect.width - w) / 2;
-            const y = (rect.height - h) / 2;
-            pad.ctx.drawImage(img, x, y, w, h);
-            pad.hasData = true;
-        };
-        img.src = dataUrl;
-    }
-
-    canvas.addEventListener("pointerdown", start);
-    canvas.addEventListener("pointermove", move);
-    canvas.addEventListener("pointerup", end);
-    canvas.addEventListener("pointercancel", end);
-    canvas.addEventListener("pointerleave", end);
-
-    pad.resize = resize;
-    pad.clear = clear;
-    pad.drawImageFrom = drawImageFrom;
-    pad.getImage = () => (pad.hasData ? canvas.toDataURL("image/png") : "");
-
-    return pad;
-}
-
-const signaturePad = makeSignaturePad(signatureCanvas, SIGNATURE_LINE_WIDTH);
-signaturePad.onStart = () => {
-    signatureStatus.textContent = "Signature captured.";
-    signatureStatus.className = "mt-1.5 text-[10px] text-emerald-600";
-};
-signaturePad.onClear = () => {
-    signatureStatus.textContent = "Signature required before saving.";
-    signatureStatus.className = "mt-1.5 text-[10px] text-slate-400";
-};
-
-// Built lazily the first time the full-screen pad is opened, since
-// its canvas is display:none (inside the hidden overlay) at page load
-// and can't be measured until then.
-let fsSignaturePad = null;
-
-function setupSignatureCanvas() {
-    if (!signatureCanvas) return;
-
-    // The signature box lives inside the review screen, which is
-    // display:none at page load, so its bounding box is 0x0 at this
-    // point — sizing has to happen again once the box is actually
-    // visible. A ResizeObserver catches that transition (and any
-    // later layout change, e.g. orientation); captureImage() also
-    // calls resizeSignatureCanvas() directly right after showing
-    // the review screen, as a fallback in case the observer doesn't
-    // fire on the display:none -> block transition in every browser.
-    const observer = new ResizeObserver(() => signaturePad.resize());
-    observer.observe(signatureCanvas);
-
-    clearSignatureButton?.addEventListener("click", () => signaturePad.clear());
-    expandSignatureButton?.addEventListener("click", openSignatureFullscreen);
-    fsSignatureClearButton?.addEventListener("click", () => fsSignaturePad?.clear());
-    fsSignatureDoneButton?.addEventListener("click", closeSignatureFullscreenAndApply);
-    fsSignatureCloseButton?.addEventListener("click", closeSignatureFullscreen);
-
-    // Keep the full-screen pad correctly sized if the layout changes
-    // while it's open — rotation, or the mobile browser's address bar
-    // showing/hiding and changing the available height.
-    if (fsSignatureCanvas) {
-        const fsObserver = new ResizeObserver(() => fsSignaturePad?.resize());
-        fsObserver.observe(fsSignatureCanvas);
-    }
-}
-
-function resizeSignatureCanvas() {
-    signaturePad.resize();
-}
-
-function clearSignature() {
-    signaturePad.clear();
-}
-
-function getSignatureImage() {
-    return signaturePad.getImage();
-}
-
-// ---- Full-screen signing (bigger area + thicker ink for easier signing) ----
-function openSignatureFullscreen() {
-    if (!signatureFullscreenOverlay) return;
-
-    signatureFullscreenOverlay.classList.remove("hidden");
-    signatureFullscreenOverlay.classList.add("flex");
-    document.body.style.overflow = "hidden"; // lock background scroll while signing
-
-    if (!fsSignaturePad) {
-        fsSignaturePad = makeSignaturePad(fsSignatureCanvas, SIGNATURE_LINE_WIDTH_FS);
-    }
-
-    // Wait a frame so the overlay has actually become visible/sized
-    // before we measure it and size the canvas.
-    requestAnimationFrame(() => {
-        fsSignaturePad.resize();
-        if (signaturePad.hasData) {
-            fsSignaturePad.drawImageFrom(signaturePad.getImage());
-        }
-    });
-}
-
-function closeSignatureFullscreen() {
-    if (!signatureFullscreenOverlay) return;
-    signatureFullscreenOverlay.classList.add("hidden");
-    signatureFullscreenOverlay.classList.remove("flex");
-    document.body.style.overflow = "";
-}
-
-function closeSignatureFullscreenAndApply() {
-    if (fsSignaturePad?.hasData) {
-        signaturePad.drawImageFrom(fsSignaturePad.getImage());
-        signatureStatus.textContent = "Signature captured.";
-        signatureStatus.className = "mt-1.5 text-[10px] text-emerald-600";
-    }
-    closeSignatureFullscreen();
 }
 
 // =========================================================
@@ -565,6 +370,26 @@ function validateFields() {
     return firstInvalid;
 }
 
+function findRecordRowById(sheet, recordId) {
+    const lastRow = sheet.getLastRow();
+
+    if (lastRow < 2) {
+        return null;
+    }
+
+    const recordIds = sheet
+        .getRange(2, 1, lastRow - 1, 1)
+        .getValues();
+
+    for (let i = 0; i < recordIds.length; i++) {
+        if (String(recordIds[i][0]) === String(recordId)) {
+            return i + 2;
+        }
+    }
+
+    return null;
+}
+
 async function saveRecord() {
     const payload = {
         name: fields.name.value.trim(),
@@ -573,11 +398,9 @@ async function saveRecord() {
         sex: fields.sex.value.trim(),
         address: fields.address.value.trim(),
         idNumber: fields.idNumber.value.trim(),
-        scannedIdImage,
-        signatureImage: getSignatureImage(),
 
         // Same id on every retry of this record, so the server can
-        // recognise a repeat instead of writing a duplicate.
+        // recognise a repeat instead of writing a duplicate "New" row.
         clientRequestId,
     };
 
@@ -588,7 +411,7 @@ async function saveRecord() {
     return result;
 }
 
-// Manual save via the Confirm & Save button.
+// Manual confirm via the Confirm button.
 async function submitToGoogleSheet() {
     const firstInvalid = validateFields();
 
@@ -598,19 +421,7 @@ async function submitToGoogleSheet() {
 
     if (!scannedIdImage) {
         return alert(
-            "Scanned ID image is missing. Please capture the ID."
-        );
-    }
-
-    if (!signaturePad.hasData) {
-        signatureStatus.textContent =
-            "Please provide a signature before saving.";
-
-        signatureStatus.className =
-            "mt-1.5 text-[10px] font-semibold text-red-600";
-
-        return alert(
-            "Please provide an electronic signature before saving."
+            "No ID has been scanned yet. Please capture the ID first."
         );
     }
 
@@ -618,15 +429,17 @@ async function submitToGoogleSheet() {
 
     confirmButton.disabled = true;
     const originalText = confirmButton.textContent;
-    confirmButton.textContent = "Saving...";
+    confirmButton.textContent = "Checking...";
 
     try {
         const result = await saveRecord();
 
         if (result.duplicate) {
-            alert("This record was already saved earlier.\n\nNo duplicate was created.");
+            alert("This scan was already processed earlier.\n\nNo duplicate was created.");
+        } else if (result.matchStatus === "Present") {
+            alert("Present — this person is already on record.\n\nNo new row was added.");
         } else {
-            alert("Successfully saved!\n\nPerson information was saved to Google Sheets.\nThe scanned ID image was saved to Google Drive.");
+            alert("New — this person was not found on record.\n\nA new row was added to the sheet.");
         }
         retakeScan();
 
@@ -644,7 +457,7 @@ async function submitToGoogleSheet() {
         if (looksLikeNetworkError) {
             alert(
                 "The connection dropped before the server replied.\n\n" +
-                "The record may already have been saved. Tap Confirm & Save again — " +
+                "The check may already have gone through. Tap Confirm again — " +
                 "if it went through the first time, no duplicate will be created."
             );
         } else {
@@ -665,7 +478,6 @@ clearButton.addEventListener("click", clearForm);
 confirmButton.addEventListener("click", submitToGoogleSheet);
 
 document.addEventListener("DOMContentLoaded", () => {
-    setupSignatureCanvas();
     startCamera();
 });
 window.addEventListener("beforeunload", stopCamera);
