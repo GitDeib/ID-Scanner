@@ -233,11 +233,9 @@
 
                         <div class="space-y-3.5 p-4">
 
-                            <!-- LOCATOR STATUS -->
-                            <!-- Shown as soon as OCR runs: tells the operator whether
-                                 this person matches an existing row ("Present") or
-                                 not ("New"). Informational only — it never blocks
-                                 Confirm. -->
+                            <!-- NEW-RECORD STATUS -->
+                            <!-- Existing matches are presented in the queue-number
+                                 modal; this compact notice is used for new records. -->
                             <div id="duplicateWarning"
                                 class="hidden flex items-start gap-2 rounded-lg border px-3 py-2 text-[11px] font-medium leading-relaxed">
                             </div>
@@ -294,6 +292,30 @@
         </section>
 
     </main>
+
+    <!-- EXISTING RECORD MATCH MODAL -->
+    <div id="matchModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+        role="dialog" aria-modal="true" aria-labelledby="matchModalTitle" aria-describedby="matchModalDescription">
+        <div class="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-2xl">
+            <div class="bg-blue-600 px-6 py-4 text-center text-white">
+                <p class="text-xs font-bold uppercase tracking-[0.22em]">Existing record found</p>
+            </div>
+            <div class="px-6 py-7 text-center sm:px-8">
+                <p id="matchModalTitle" class="text-sm font-semibold uppercase tracking-wider text-slate-500">Number</p>
+                <p id="matchModalNumber" class="mt-1 text-7xl font-black leading-none tracking-tight text-blue-600">--</p>
+                <div class="mx-auto my-6 h-px max-w-xs bg-slate-200"></div>
+                <p id="matchModalName" class="text-xl font-bold leading-snug text-slate-900"></p>
+                <p id="matchModalDescription" class="mt-2 text-sm leading-relaxed text-slate-500">
+                    This person is already on the list. Confirming their information will mark this record Present and
+                    will not add a new row.
+                </p>
+                <button id="closeMatchModalButton" type="button"
+                    class="mt-7 w-full rounded-xl bg-blue-600 px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Continue to Review
+                </button>
+            </div>
+        </div>
+    </div>
 
     <canvas id="captureCanvas" class="hidden"></canvas>
 

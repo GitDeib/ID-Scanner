@@ -29,10 +29,14 @@ const captureScreen = document.getElementById("captureScreen");
 const processingScreen = document.getElementById("processingScreen");
 const reviewScreen = document.getElementById("reviewScreen");
 const processingText = document.getElementById("processingText");
+const matchModal = document.getElementById("matchModal");
+const matchModalNumber = document.getElementById("matchModalNumber");
+const matchModalName = document.getElementById("matchModalName");
+const closeMatchModalButton = document.getElementById("closeMatchModalButton");
 
-// Locator banner — always shown once a scan has been read, telling the
-// operator whether this person is already on record ("Present") or
-// looks new ("New"). Purely informational: it never blocks Confirm.
+// Locator status is shown once a scan has been read. Existing records
+// get the prominent queue-number modal; new records keep the compact
+// inline notice. Neither blocks the final Confirm action.
 const duplicateWarning = document.getElementById("duplicateWarning");
 
 // Only Name, District, and Birthdate are collected — the sheet has no
@@ -171,34 +175,48 @@ function showScannedIdPreview(imageData) {
 // =========================================================
 // `match` mirrors what the backend's findSimilarRecord() returns:
 // { no, name, birthday, type: "birthday_and_name" | "similar_name" }
-// or null. Always shown once a scan has been read, so the operator
-// knows right away whether this is a known person ("Present") or a
-// new one ("New") — before they even tap Confirm.
+// or null. A match opens the queue-number modal before the operator
+// reviews the extracted details and taps Confirm.
 function showDuplicateWarning(match) {
     if (!duplicateWarning) return;
 
+    if (match) {
+        hideDuplicateWarning();
+        showMatchModal(match);
+        return;
+    }
+
     duplicateWarning.classList.remove("hidden");
     duplicateWarning.classList.remove(
-        "border-amber-200", "bg-amber-50", "text-amber-800",
         "border-blue-200", "bg-blue-50", "text-blue-800"
     );
 
-    if (match) {
-        duplicateWarning.classList.add("border-amber-200", "bg-amber-50", "text-amber-800");
-        duplicateWarning.textContent =
-            `Present — already on the list as No. ${match.no} (${match.name}). ` +
-            `Confirming will mark them Present, not add a new row.`;
-    } else {
-        duplicateWarning.classList.add("border-blue-200", "bg-blue-50", "text-blue-800");
-        duplicateWarning.textContent =
-            "New — no matching entry was found. Confirming will add this as a new row.";
-    }
+    duplicateWarning.classList.add("border-blue-200", "bg-blue-50", "text-blue-800");
+    duplicateWarning.textContent =
+        "New — no matching entry was found. Confirming will add this as a new row.";
 }
 
 function hideDuplicateWarning() {
     if (!duplicateWarning) return;
     duplicateWarning.classList.add("hidden");
     duplicateWarning.textContent = "";
+}
+
+function showMatchModal(match) {
+    if (!matchModal) return;
+    matchModalNumber.textContent = match.no ?? "--";
+    matchModalName.textContent = match.name || "Name unavailable";
+    matchModal.classList.remove("hidden");
+    matchModal.classList.add("flex");
+    document.body.classList.add("overflow-hidden");
+    closeMatchModalButton.focus();
+}
+
+function hideMatchModal() {
+    if (!matchModal) return;
+    matchModal.classList.add("hidden");
+    matchModal.classList.remove("flex");
+    document.body.classList.remove("overflow-hidden");
 }
 
 // =========================================================
@@ -330,6 +348,7 @@ function retakeScan() {
     cameraInstruction.textContent = "Position the ID inside the frame.";
     setOCRStatus("Waiting", "waiting");
     hideDuplicateWarning();
+    hideMatchModal();
 
     showScreen("capture");
     startCamera();
@@ -440,6 +459,12 @@ captureButton.addEventListener("click", captureImage);
 retakeButton.addEventListener("click", retakeScan);
 clearButton.addEventListener("click", clearForm);
 confirmButton.addEventListener("click", submitToGoogleSheet);
+closeMatchModalButton.addEventListener("click", hideMatchModal);
+document.addEventListener("keydown", event => {
+    if (event.key === "Escape" && !matchModal.classList.contains("hidden")) {
+        hideMatchModal();
+    }
+});
 
 document.addEventListener("DOMContentLoaded", () => {
     startCamera();
